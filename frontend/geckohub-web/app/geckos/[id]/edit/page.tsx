@@ -4,9 +4,12 @@ import { useState, useEffect, ChangeEvent, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { Gecko } from "@/app/types/gecko";
 
 export default function EditGeckoPage({ params }: { params: { id: string } }) {
   const router = useRouter();
+  const [males, setMales] = useState<Gecko[]>([]);
+  const [females, setFemales] = useState<Gecko[]>([]);
   const [loading, setLoading] = useState(true);
   const [preview, setPreview] = useState<string | null>(null);
 
@@ -16,44 +19,51 @@ export default function EditGeckoPage({ params }: { params: { id: string } }) {
     gender: "Unknown",
     birth_date: "",
     description: "",
+    sire: "",
+    dam: "",
   });
   const [file, setFile] = useState<File | null>(null);
 
-  // 1. 기존 데이터 불러오기
   useEffect(() => {
-    // params가 Promise인 경우를 대비해 처리 (Next.js 15 대응)
-    const fetchData = async () => {
-      // params가 Promise라면 await, 아니라면 그냥 사용
+    const init = async () => {
       const resolvedParams = await Promise.resolve(params);
 
       try {
-        const res = await fetch(
+        // 1. 내 정보 가져오기
+        const myRes = await fetch(
           `http://127.0.0.1:8000/api/geckos/${resolvedParams.id}/`
         );
-        if (!res.ok) throw new Error("데이터 불러오기 실패");
+        const myData = await myRes.json();
 
-        const data = await res.json();
+        // 2. 전체 리스트 가져오기 (부모 선택용)
+        const listRes = await fetch("http://127.0.0.1:8000/api/geckos/");
+        const listData: Gecko[] = await listRes.json();
+
+        // 3. 폼 세팅
         setFormData({
-          name: data.name,
-          morph: data.morph || "",
-          gender: data.gender,
-          birth_date: data.birth_date || "",
-          description: data.description || "",
+          name: myData.name,
+          morph: myData.morph || "",
+          gender: myData.gender,
+          birth_date: myData.birth_date || "",
+          description: myData.description || "",
+          sire: myData.sire ? String(myData.sire) : "", // 숫자를 문자로 변환
+          dam: myData.dam ? String(myData.dam) : "",
         });
-        // 기존 이미지가 있으면 미리보기에 세팅
-        if (data.profile_image) {
-          setPreview(data.profile_image);
-        }
+        if (myData.profile_image) setPreview(myData.profile_image);
+
+        // 4. 후보군 세팅 (자기 자신은 제외!!)
+        const others = listData.filter(
+          (g) => g.id !== Number(resolvedParams.id)
+        );
+        setMales(others.filter((g) => g.gender === "Male"));
+        setFemales(others.filter((g) => g.gender === "Female"));
       } catch (err) {
-        console.error(err);
-        alert("정보를 불러오지 못했습니다.");
-        router.push("/");
+        // ... 에러 처리
       } finally {
         setLoading(false);
       }
     };
-
-    fetchData();
+    init();
   }, [params, router]);
 
   const handleChange = (

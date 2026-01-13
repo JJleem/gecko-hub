@@ -1,6 +1,6 @@
-"use client"; // 필수: 폼 입력은 클라이언트에서 일어남
+"use client";
 
-import { useState, ChangeEvent, FormEvent } from "react";
+import { useState, useEffect, ChangeEvent, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -10,17 +10,38 @@ export default function NewGeckoPage() {
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
 
-  // 폼 데이터 상태 관리
+  // 부모 후보군 데이터
+  const [males, setMales] = useState<Gecko[]>([]);
+  const [females, setFemales] = useState<Gecko[]>([]);
+
   const [formData, setFormData] = useState({
     name: "",
     morph: "",
     gender: "Unknown",
     birth_date: "",
     description: "",
+    sire: "", // 아빠 ID (빈 문자열 = 선택 안 함)
+    dam: "", // 엄마 ID
   });
   const [file, setFile] = useState<File | null>(null);
 
-  // 텍스트 입력 핸들러
+  // 1. 컴포넌트 마운트 시 전체 개체 리스트 불러와서 성별로 나누기
+  useEffect(() => {
+    const fetchCandidates = async () => {
+      try {
+        const res = await fetch("http://127.0.0.1:8000/api/geckos/");
+        if (res.ok) {
+          const data: Gecko[] = await res.json();
+          setMales(data.filter((g) => g.gender === "Male"));
+          setFemales(data.filter((g) => g.gender === "Female"));
+        }
+      } catch (error) {
+        console.error("부모 후보군 로딩 실패", error);
+      }
+    };
+    fetchCandidates();
+  }, []);
+
   const handleChange = (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
@@ -28,18 +49,15 @@ export default function NewGeckoPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // 이미지 파일 선택 및 미리보기 핸들러
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       setFile(selectedFile);
-      // 미리보기 URL 생성
       const objectUrl = URL.createObjectURL(selectedFile);
       setPreview(objectUrl);
     }
   };
 
-  // 전송 핸들러
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!formData.name) return alert("이름을 입력해주세요.");
@@ -47,7 +65,6 @@ export default function NewGeckoPage() {
     setLoading(true);
 
     try {
-      // 1. FormData 객체 생성 (이미지 전송을 위해 필수)
       const data = new FormData();
       data.append("name", formData.name);
       data.append("morph", formData.morph);
@@ -55,25 +72,24 @@ export default function NewGeckoPage() {
       if (formData.birth_date) data.append("birth_date", formData.birth_date);
       data.append("description", formData.description);
 
-      // 이미지가 있을 때만 추가
+      // 부모 ID 추가 (값이 있을 때만)
+      if (formData.sire) data.append("sire", formData.sire);
+      if (formData.dam) data.append("dam", formData.dam);
+
       if (file) {
         data.append("profile_image", file);
       }
 
-      // 2. 백엔드로 전송 (Content-Type 헤더를 설정하지 않아야 함! 브라우저가 알아서 설정)
       const res = await fetch("http://127.0.0.1:8000/api/geckos/", {
         method: "POST",
         body: data,
       });
 
-      if (!res.ok) {
-        throw new Error("등록 실패");
-      }
+      if (!res.ok) throw new Error("등록 실패");
 
-      // 3. 성공 시 메인으로 이동 및 새로고침
       alert("등록되었습니다!");
       router.push("/");
-      router.refresh(); // 데이터 갱신
+      router.refresh();
     } catch (error) {
       console.error(error);
       alert("오류가 발생했습니다.");
@@ -88,7 +104,7 @@ export default function NewGeckoPage() {
         <h1 className="text-2xl font-bold mb-6">🦎 새 가족 등록하기</h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* 이미지 업로드 영역 */}
+          {/* ... (이미지 업로드 부분은 기존과 동일) ... */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               프로필 사진
@@ -117,7 +133,6 @@ export default function NewGeckoPage() {
             </div>
           </div>
 
-          {/* 기본 정보 입력 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">
@@ -171,6 +186,46 @@ export default function NewGeckoPage() {
                 onChange={handleChange}
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none"
               />
+            </div>
+          </div>
+
+          {/* 👇 [추가] 부모 선택 영역 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                부 (Sire)
+              </label>
+              <select
+                name="sire"
+                value={formData.sire}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none"
+              >
+                <option value="">선택 안 함 (Unknown)</option>
+                {males.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name} ({g.morph})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                모 (Dam)
+              </label>
+              <select
+                name="dam"
+                value={formData.dam}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none"
+              >
+                <option value="">선택 안 함 (Unknown)</option>
+                {females.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name} ({g.morph})
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
