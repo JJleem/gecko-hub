@@ -30,37 +30,33 @@ export default function EditGeckoPage({ params }: { params: { id: string } }) {
       const resolvedParams = await Promise.resolve(params);
 
       try {
-        // 1. 내 정보 가져오기
         const myRes = await fetch(
           `http://127.0.0.1:8000/api/geckos/${resolvedParams.id}/`
         );
         const myData = await myRes.json();
 
-        // 2. 전체 리스트 가져오기 (부모 선택용)
         const listRes = await fetch("http://127.0.0.1:8000/api/geckos/");
         const listData: Gecko[] = await listRes.json();
 
-        // 3. 폼 세팅
         setFormData({
           name: myData.name,
           morph: myData.morph || "",
           gender: myData.gender,
           birth_date: myData.birth_date || "",
           description: myData.description || "",
-          sire: myData.sire ? String(myData.sire) : "", // 숫자를 문자로 변환
+          sire: myData.sire ? String(myData.sire) : "",
           dam: myData.dam ? String(myData.dam) : "",
           is_ovulating: myData.is_ovulating || false,
         });
         if (myData.profile_image) setPreview(myData.profile_image);
 
-        // 4. 후보군 세팅 (자기 자신은 제외!!)
         const others = listData.filter(
           (g) => g.id !== Number(resolvedParams.id)
         );
         setMales(others.filter((g) => g.gender === "Male"));
         setFemales(others.filter((g) => g.gender === "Female"));
       } catch (err) {
-        // ... 에러 처리
+        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -72,7 +68,12 @@ export default function EditGeckoPage({ params }: { params: { id: string } }) {
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    // 성별이 바뀌면 배란/발정 체크를 초기화하는 것이 안전함
+    if (name === "gender") {
+      setFormData((prev) => ({ ...prev, [name]: value, is_ovulating: false }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -88,7 +89,6 @@ export default function EditGeckoPage({ params }: { params: { id: string } }) {
     e.preventDefault();
     if (!formData.name) return alert("이름을 입력해주세요.");
 
-    // 로딩바 대신 '저장 중...' 텍스트 변경으로 처리
     const submitBtn = document.getElementById(
       "submit-btn"
     ) as HTMLButtonElement;
@@ -100,18 +100,22 @@ export default function EditGeckoPage({ params }: { params: { id: string } }) {
       data.append("name", formData.name);
       data.append("morph", formData.morph);
       data.append("gender", formData.gender);
+      // ⭐ [중요] boolean 값을 문자열 "true"/"false"로 확실하게 변환
       data.append("is_ovulating", formData.is_ovulating ? "true" : "false");
+
       if (formData.birth_date) data.append("birth_date", formData.birth_date);
       data.append("description", formData.description);
 
-      // 파일이 새로 선택되었을 때만 전송 (선택 안 하면 기존 사진 유지됨)
+      // 부모 정보 추가 (빈 문자열 처리)
+      data.append("sire", formData.sire || "");
+      data.append("dam", formData.dam || "");
+
       if (file) {
         data.append("profile_image", file);
       }
 
       const resolvedParams = await Promise.resolve(params);
 
-      // PATCH 메서드 사용 (부분 수정)
       const res = await fetch(
         `http://127.0.0.1:8000/api/geckos/${resolvedParams.id}/`,
         {
@@ -123,7 +127,7 @@ export default function EditGeckoPage({ params }: { params: { id: string } }) {
       if (!res.ok) throw new Error("수정 실패");
 
       alert("수정되었습니다!");
-      router.push(`/geckos/${resolvedParams.id}`); // 상세 페이지로 이동
+      router.push(`/geckos/${resolvedParams.id}`);
       router.refresh();
     } catch (error) {
       console.error(error);
@@ -154,7 +158,7 @@ export default function EditGeckoPage({ params }: { params: { id: string } }) {
                     alt="Preview"
                     fill
                     className="object-cover"
-                    unoptimized // 로컬 이미지 미리보기 호환
+                    unoptimized
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full text-gray-400 text-xs">
@@ -169,12 +173,8 @@ export default function EditGeckoPage({ params }: { params: { id: string } }) {
                 className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
               />
             </div>
-            <p className="text-xs text-gray-400 mt-1">
-              * 사진을 변경하려면 파일을 선택하세요.
-            </p>
           </div>
 
-          {/* 기본 정보 입력 (기존 값 채워져 있음) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">
@@ -216,26 +216,6 @@ export default function EditGeckoPage({ params }: { params: { id: string } }) {
                 <option value="Female">암컷</option>
               </select>
             </div>
-            <div className="flex items-center p-4 bg-red-50 rounded-lg border border-red-100">
-              <input
-                type="checkbox"
-                id="ovulating"
-                checked={formData.is_ovulating}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    is_ovulating: e.target.checked,
-                  }))
-                }
-                className="w-5 h-5 text-red-600 rounded focus:ring-red-500 border-gray-300"
-              />
-              <label
-                htmlFor="ovulating"
-                className="ml-3 text-sm font-bold text-red-700"
-              >
-                현재 배란(Ovulation) 진행 중인가요? 🥚
-              </label>
-            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">
                 해칭일
@@ -247,6 +227,89 @@ export default function EditGeckoPage({ params }: { params: { id: string } }) {
                 onChange={handleChange}
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none"
               />
+            </div>
+          </div>
+
+          {/* 🔥 [변경] 성별에 따른 조건부 렌더링 영역 */}
+          {formData.gender !== "Unknown" && (
+            <div
+              className={`flex items-center p-4 rounded-lg border 
+                ${
+                  formData.gender === "Female"
+                    ? "bg-red-50 border-red-100"
+                    : "bg-blue-50 border-blue-100"
+                }`}
+            >
+              <input
+                type="checkbox"
+                id="ovulating"
+                checked={formData.is_ovulating}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    is_ovulating: e.target.checked,
+                  }))
+                }
+                className={`w-5 h-5 rounded border-gray-300 
+                    ${
+                      formData.gender === "Female"
+                        ? "text-red-600 focus:ring-red-500"
+                        : "text-blue-600 focus:ring-blue-500"
+                    }`}
+              />
+              <label
+                htmlFor="ovulating"
+                className={`ml-3 text-sm font-bold 
+                    ${
+                      formData.gender === "Female"
+                        ? "text-red-700"
+                        : "text-blue-700"
+                    }`}
+              >
+                {formData.gender === "Female"
+                  ? "현재 배란(Ovulation) 진행 중인가요? 🥚"
+                  : "현재 발정(Rut) 상태인가요? 🔥"}
+              </label>
+            </div>
+          )}
+
+          {/* 부모 선택 영역 (기존 유지) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                부 (Sire)
+              </label>
+              <select
+                name="sire"
+                value={formData.sire}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none"
+              >
+                <option value="">선택 안 함 (Unknown)</option>
+                {males.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name} ({g.morph})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                모 (Dam)
+              </label>
+              <select
+                name="dam"
+                value={formData.dam}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none"
+              >
+                <option value="">선택 안 함 (Unknown)</option>
+                {females.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name} ({g.morph})
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -264,7 +327,6 @@ export default function EditGeckoPage({ params }: { params: { id: string } }) {
           </div>
 
           <div className="flex justify-end space-x-3 pt-4 border-t">
-            {/* 취소 시 상세 페이지로 돌아감 */}
             <button
               type="button"
               onClick={() => router.back()}

@@ -28,5 +28,7 @@ class GeckoSerializer(serializers.ModelSerializer):
             'description', 'profile_image', 'created_at', 
             'sire', 'dam',             # 글 쓸 때 필요한 ID (기존 유지)
             'sire_detail', 'dam_detail', # 보여줄 때 필요한 상세 정보 (추가)
-            'logs'
+            'logs',
+            'is_ovulating',
+            
         ]

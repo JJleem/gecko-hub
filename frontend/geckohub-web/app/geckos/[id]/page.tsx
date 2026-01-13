@@ -76,11 +76,16 @@ export default async function GeckoDetail({ params }: Props) {
           <div className="p-8 md:w-1/2">
             <h1 className="text-3xl font-bold mb-2">
               {gecko.name}
-              {gecko.is_ovulating && (
-                <span className="bg-red-100 text-red-600 text-xs px-2 py-1 rounded-full border border-red-200">
-                  🥚 배란중 (Ovulating)
-                </span>
-              )}
+              {gecko.is_ovulating &&
+                (gecko.gender === "Female" ? (
+                  <span className="bg-red-100 text-red-600 text-xs px-2 py-1 rounded-full border border-red-200">
+                    🥚 배란중 (Ovulating)
+                  </span>
+                ) : gecko.gender === "Male" ? (
+                  <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full border border-blue-200">
+                    🔥 발정 (Rut)
+                  </span>
+                ) : null)}
             </h1>
             <p className="text-gray-500 mb-6">
               {gecko.morph || "모프 정보 없음"}
