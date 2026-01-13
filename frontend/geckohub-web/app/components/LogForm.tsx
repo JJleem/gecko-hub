@@ -1,29 +1,58 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, useEffect, FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { Gecko } from "../types/gecko";
 
-export default function LogForm({ geckoId }: { geckoId: number }) {
+export default function LogForm({
+  geckoId,
+  currentGender,
+}: {
+  geckoId: number;
+  currentGender: string;
+}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [isOpen, setIsOpen] = useState(false); // 폼 열기/닫기 토글
+  const [isOpen, setIsOpen] = useState(false);
+  const [partners, setPartners] = useState<Gecko[]>([]);
+
+  // [추가] 직접 입력 모드인지 여부
+  const [isManualPartner, setIsManualPartner] = useState(false);
 
   const [formData, setFormData] = useState({
-    log_date: new Date().toISOString().split("T")[0], // 오늘 날짜 기본값
+    log_date: new Date().toISOString().split("T")[0],
     log_type: "Feeding",
     weight: "",
     note: "",
     egg_count: "2",
     is_fertile: true,
     egg_condition: "",
+    partner: "", // ID 저장용
+    partner_name: "", // [추가] 이름 직접 입력용
+    mating_success: true,
   });
+
+  // 메이팅 선택 시 파트너 목록 로딩
+  useEffect(() => {
+    if (formData.log_type === "Mating" && partners.length === 0) {
+      fetch("http://127.0.0.1:8000/api/geckos/")
+        .then((res) => res.json())
+        .then((data: Gecko[]) => {
+          const candidates = data.filter(
+            (g) =>
+              g.id !== geckoId &&
+              (currentGender === "Unknown" || g.gender !== currentGender)
+          );
+          setPartners(candidates);
+        });
+    }
+  }, [formData.log_type, geckoId, currentGender, partners.length]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // 1. 전송할 데이터 준비 (JSON)
       const payload = {
         gecko: geckoId,
         log_date: formData.log_date,
@@ -36,9 +65,19 @@ export default function LogForm({ geckoId }: { geckoId: number }) {
           formData.log_type === "Laying" ? formData.is_fertile : false,
         egg_condition:
           formData.log_type === "Laying" ? formData.egg_condition : "",
+        partner:
+          formData.log_type === "Mating" && !isManualPartner && formData.partner
+            ? parseInt(formData.partner)
+            : null,
+        partner_name:
+          formData.log_type === "Mating" && isManualPartner
+            ? formData.partner_name
+            : "",
+
+        mating_success:
+          formData.log_type === "Mating" ? formData.mating_success : false,
       };
 
-      // 2. API 호출
       const res = await fetch("http://127.0.0.1:8000/api/logs/", {
         method: "POST",
         headers: {
@@ -48,17 +87,24 @@ export default function LogForm({ geckoId }: { geckoId: number }) {
       });
 
       if (!res.ok) {
-        const errorData = await res.json(); // 서버가 보낸 구체적인 에러 내용
-        console.log("서버 에러 내용:", errorData); // F12 콘솔에 찍힘
-        alert(`저장 실패: ${JSON.stringify(errorData)}`); // 알림창에 띄움
+        const errorData = await res.json();
+        console.log("서버 에러:", errorData);
+        alert(`저장 실패: ${JSON.stringify(errorData)}`);
         throw new Error("API 요청 실패");
       }
 
-      // 3. 성공 시 처리
       alert("기록되었습니다! 📝");
-      setFormData({ ...formData, weight: "", note: "" }); // 입력창 초기화
-      setIsOpen(false); // 폼 닫기
-      router.refresh(); // ⭐ 페이지 새로고침 없이 데이터만 갱신 (서버 컴포넌트 재요청)
+      // 초기화
+      setFormData({
+        ...formData,
+        weight: "",
+        note: "",
+        partner: "",
+        partner_name: "",
+      });
+      setIsManualPartner(false);
+      setIsOpen(false);
+      router.refresh();
     } catch (error) {
       console.error(error);
       alert("에러가 발생했습니다.");
@@ -69,7 +115,6 @@ export default function LogForm({ geckoId }: { geckoId: number }) {
 
   return (
     <div className="mb-8">
-      {/* 토글 버튼 */}
       {!isOpen ? (
         <button
           onClick={() => setIsOpen(true)}
@@ -105,6 +150,7 @@ export default function LogForm({ geckoId }: { geckoId: number }) {
                 >
                   <option value="Feeding">🦗 피딩</option>
                   <option value="Weight">⚖️ 체중 측정</option>
+                  <option value="Mating">💞 메이팅 (Pairing)</option>
                   <option value="Laying">🥚 산란 (Laying)</option>
                   <option value="Shedding">👕 탈피</option>
                   <option value="Cleaning">🧹 청소</option>
@@ -112,6 +158,91 @@ export default function LogForm({ geckoId }: { geckoId: number }) {
                 </select>
               </div>
             </div>
+
+            {/* 메이팅 폼 */}
+            {formData.log_type === "Mating" && (
+              <div className="bg-pink-50 p-3 rounded-lg border border-pink-100 space-y-3">
+                <p className="text-xs font-bold text-pink-600">
+                  💞 메이팅 정보 입력
+                </p>
+                <div className="flex space-x-4">
+                  <div className="flex-1">
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="block text-xs text-gray-500">
+                        파트너
+                      </label>
+                      {/* 직접 입력 토글 체크박스 */}
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id="manualPartner"
+                          checked={isManualPartner}
+                          onChange={(e) => setIsManualPartner(e.target.checked)}
+                          className="w-3 h-3 rounded text-pink-600 focus:ring-pink-500"
+                        />
+                        <label
+                          htmlFor="manualPartner"
+                          className="ml-1 text-[10px] text-gray-500 cursor-pointer"
+                        >
+                          직접 입력
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* 모드에 따라 SelectBox 또는 Input 보여주기 */}
+                    {!isManualPartner ? (
+                      <select
+                        value={formData.partner}
+                        onChange={(e) =>
+                          setFormData({ ...formData, partner: e.target.value })
+                        }
+                        className="w-full border rounded p-2 text-sm"
+                      >
+                        <option value="">목록에서 선택</option>
+                        {partners.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name} ({p.gender})
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        placeholder="이름 직접 입력"
+                        value={formData.partner_name}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            partner_name: e.target.value,
+                          })
+                        }
+                        className="w-full border rounded p-2 text-sm"
+                      />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-500 mb-1">
+                      성공 여부
+                    </label>
+                    <select
+                      value={formData.mating_success ? "true" : "false"}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          mating_success: e.target.value === "true",
+                        })
+                      }
+                      className="w-full border rounded p-2 text-sm"
+                    >
+                      <option value="true">✅ 성공 (Lock)</option>
+                      <option value="false">❌ 실패 (거부/Fail)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 산란 폼 */}
             {formData.log_type === "Laying" && (
               <div className="bg-orange-50 p-3 rounded-lg border border-orange-100 space-y-3">
                 <p className="text-xs font-bold text-orange-600">
@@ -171,6 +302,8 @@ export default function LogForm({ geckoId }: { geckoId: number }) {
                 </div>
               </div>
             )}
+
+            {/* 공통 입력 (몸무게, 메모) */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs text-gray-500 mb-1">

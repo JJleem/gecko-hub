@@ -40,7 +40,8 @@ class CareLog(models.Model):
         ('Shedding', '탈피'),
         ('Cleaning', '청소'),
         ('Etc', '기타'),
-        ('Laying', 'Laying')
+        ('Laying', 'Laying'),
+        ('Mating', 'Mating'),
     )
 
     # 어떤 게코의 기록인지 연결 (Gecko가 삭제되면 기록도 같이 삭제: CASCADE)
@@ -54,6 +55,13 @@ class CareLog(models.Model):
     egg_condition = models.CharField(max_length=100, blank=True) # 알 상태 (눈꽃, 찌그러짐 등)
     # 기록용 사진 (예: 똥 상태, 탈피 껍질 등)
     image = models.ImageField(upload_to='care_logs/', null=True, blank=True)
+    partner = models.ForeignKey('Gecko', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='mating_logs')
+    partner_name = models.CharField(max_length=50, blank=True, null=True)
+    mating_success = models.BooleanField(default=False) # 성공/실패 여부
 
     def __str__(self):
         return f"{self.gecko.name} - {self.log_type} ({self.log_date})"

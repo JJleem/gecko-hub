@@ -1,14 +1,15 @@
 import DeleteButton from "@/app/components/DeleteButton";
 import EggTracker from "@/app/components/EggTracker";
+import MatingTracker from "@/app/components/MatingTracker"; // [추가]
 import LogForm from "@/app/components/LogForm";
 import WeightChart from "@/app/components/WeightChart";
-import { Gecko } from "@/app/types/gecko";
+
 import Image from "next/image";
 import Link from "next/link";
+import { Gecko } from "@/app/types/gecko";
 
 // 데이터 가져오기 (SSR)
 async function getGeckoDetail(id: string): Promise<Gecko> {
-  // id가 제대로 넘어오는지 확인
   console.log(`Fetching gecko id: ${id}`);
 
   const res = await fetch(`http://127.0.0.1:8000/api/geckos/${id}/`, {
@@ -22,40 +23,37 @@ async function getGeckoDetail(id: string): Promise<Gecko> {
   return res.json();
 }
 
-// [변경] Props 타입 정의 (params를 Promise로 감싸야 함)
 type Props = {
   params: Promise<{ id: string }>;
 };
 
-// [변경] 컴포넌트 함수 수정
 export default async function GeckoDetail({ params }: Props) {
-  // [변경] params를 먼저 await 해서 id를 꺼냅니다.
   const { id } = await params;
-
-  // 이제 id를 사용해서 데이터를 가져옵니다.
   const gecko = await getGeckoDetail(id);
 
   return (
     <main className="min-h-screen p-8 bg-gray-50 text-black">
+      {/* 상단 네비게이션 */}
       <div className="flex justify-between items-center mb-6">
         <Link href="/" className="text-blue-500 hover:underline">
           &larr; 뒤로 가기
         </Link>
 
         <div className="flex items-center space-x-2">
-          {/* 수정 버튼 (Link) */}
           <Link
             href={`/geckos/${gecko.id}/edit`}
             className="px-3 py-1 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition"
           >
             수정
           </Link>
-          {/* 삭제 버튼 (Component) */}
           <DeleteButton id={gecko.id} />
         </div>
       </div>
+
       <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+        {/* ========================================== */}
         {/* 1. 프로필 영역 */}
+        {/* ========================================== */}
         <div className="md:flex">
           <div className="md:w-1/2 relative h-80 bg-gray-200">
             {gecko.profile_image ? (
@@ -74,7 +72,7 @@ export default async function GeckoDetail({ params }: Props) {
           </div>
 
           <div className="p-8 md:w-1/2">
-            <h1 className="text-3xl font-bold mb-2">
+            <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
               {gecko.name}
               {gecko.is_ovulating &&
                 (gecko.gender === "Female" ? (
@@ -106,13 +104,14 @@ export default async function GeckoDetail({ params }: Props) {
                 <span className="text-gray-600">해칭일</span>
                 <span className="font-medium">{gecko.birth_date || "-"}</span>
               </div>
-              {/* 부모 정보 (Link 카드 형태) */}
-              <div className=" pt-4 mt-4">
+
+              {/* 혈통 정보 (Lineage) */}
+              <div className="pt-4 mt-4">
                 <h3 className="text-sm font-bold text-gray-500 mb-3">
                   🩸 혈통 정보 (Lineage)
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
-                  {/* 아빠 (Sire) */}
+                  {/* 부 (Sire) */}
                   <div className="flex flex-col">
                     <span className="text-xs text-gray-400 mb-1">
                       부 (Sire)
@@ -146,12 +145,12 @@ export default async function GeckoDetail({ params }: Props) {
                       </Link>
                     ) : (
                       <div className="p-2 bg-gray-50 rounded-lg text-sm text-gray-400 border border-gray-100">
-                        정보 없음 (Unknown)
+                        정보 없음
                       </div>
                     )}
                   </div>
 
-                  {/* 엄마 (Dam) */}
+                  {/* 모 (Dam) */}
                   <div className="flex flex-col">
                     <span className="text-xs text-gray-400 mb-1">모 (Dam)</span>
                     {gecko.dam_detail ? (
@@ -183,7 +182,7 @@ export default async function GeckoDetail({ params }: Props) {
                       </Link>
                     ) : (
                       <div className="p-2 bg-gray-50 rounded-lg text-sm text-gray-400 border border-gray-100">
-                        정보 없음 (Unknown)
+                        정보 없음
                       </div>
                     )}
                   </div>
@@ -196,19 +195,36 @@ export default async function GeckoDetail({ params }: Props) {
             </div>
           </div>
         </div>
-        {/* 그래프 영역 (프로필 밑, 로그 위) */}
+
+        {/* ========================================== */}
+        {/* 2. 대시보드 영역 (그래프 & 트래커) */}
+        {/* ========================================== */}
+
+        {/* 몸무게 그래프 */}
         <div className="p-8 border-t">
           <WeightChart logs={gecko.logs} />
         </div>
+
+        {/* 메이팅 기록 (수컷/암컷 모두 표시) */}
+        <div className="px-8 pb-4">
+          <MatingTracker logs={gecko.logs} currentGeckoId={gecko.id} />
+        </div>
+
+        {/* 산란 기록 (암컷만 표시) */}
         {gecko.gender === "Female" && (
           <div className="px-8 pb-4">
             <EggTracker logs={gecko.logs} />
           </div>
         )}
-        {/* 사육 기록 (Logs) 영역 */}
+
+        {/* ========================================== */}
+        {/* 3. 통합 사육 일지 (입력 폼 & 테이블) */}
+        {/* ========================================== */}
         <div className="p-8 border-t">
           <h2 className="text-xl font-bold mb-4">📝 사육 일지</h2>
-          <LogForm geckoId={gecko.id} />
+
+          {/* 입력 폼 (성별 전달) */}
+          <LogForm geckoId={gecko.id} currentGender={gecko.gender} />
 
           {gecko.logs && gecko.logs.length > 0 ? (
             <div className="overflow-x-auto">
@@ -217,8 +233,7 @@ export default async function GeckoDetail({ params }: Props) {
                   <tr>
                     <th className="px-4 py-3">날짜</th>
                     <th className="px-4 py-3">타입</th>
-                    {/* [변경 1] 헤더 이름 변경: 무게 -> 내용 (무게/알) */}
-                    <th className="px-4 py-3">내용 (무게/알)</th>
+                    <th className="px-4 py-3">내용 (무게/알/파트너)</th>
                     <th className="px-4 py-3">메모</th>
                   </tr>
                 </thead>
@@ -227,30 +242,36 @@ export default async function GeckoDetail({ params }: Props) {
                     <tr key={log.id} className="border-b hover:bg-gray-50">
                       <td className="px-4 py-3">{log.log_date}</td>
                       <td className="px-4 py-3">
-                        {/* [변경 2] 뱃지 색상 및 텍스트 처리 (산란 추가) */}
                         <span
                           className={`px-2 py-1 rounded text-xs text-white
-                  ${
-                    log.log_type === "Feeding"
-                      ? "bg-green-500"
-                      : log.log_type === "Weight"
-                      ? "bg-blue-500"
-                      : log.log_type === "Laying" // 산란일 때 주황색
-                      ? "bg-orange-500"
-                      : "bg-gray-500"
-                  }`}
+                          ${
+                            log.log_type === "Feeding"
+                              ? "bg-green-500"
+                              : log.log_type === "Weight"
+                              ? "bg-blue-500"
+                              : log.log_type === "Laying"
+                              ? "bg-orange-500"
+                              : log.log_type === "Mating"
+                              ? "bg-pink-500"
+                              : "bg-gray-500"
+                          }`}
                         >
-                          {log.log_type === "Laying" ? "🥚 산란" : log.log_type}
+                          {log.log_type === "Laying"
+                            ? "🥚 산란"
+                            : log.log_type === "Mating"
+                            ? "💞 메이팅"
+                            : log.log_type}
                         </span>
                       </td>
 
-                      {/* [변경 3] 무게 또는 알 정보 표시 로직 */}
+                      {/* 내용 표시 (분기 처리) */}
                       <td className="px-4 py-3">
+                        {/* 1. 무게 */}
                         {log.log_type === "Weight" && log.weight ? (
                           <span className="font-bold">{log.weight}g</span>
-                        ) : log.log_type === "Laying" ? (
+                        ) : /* 2. 산란 */
+                        log.log_type === "Laying" ? (
                           <div className="flex items-center text-sm">
-                            {/* 유정란/무정란 표시 */}
                             <span
                               className={
                                 log.is_fertile
@@ -261,18 +282,56 @@ export default async function GeckoDetail({ params }: Props) {
                               {log.is_fertile ? "유정란" : "무정란"}
                             </span>
                             <span className="mx-2 text-gray-300">|</span>
-
-                            {/* 개수 표시 */}
                             <span className="font-medium">
                               {log.egg_count}개
                             </span>
-
-                            {/* 알 상태 메모가 있으면 괄호로 표시 */}
                             {log.egg_condition && (
                               <span className="ml-2 text-xs text-gray-500">
                                 ({log.egg_condition})
                               </span>
                             )}
+                          </div>
+                        ) : /* 3. 메이팅 (링크 추가) */
+                        log.log_type === "Mating" ? (
+                          <div className="flex items-center space-x-2">
+                            <span>{log.mating_success ? "✅" : "❌"}</span>
+
+                            {/* 🔥 로직 적용: 내가 쓴 글이면 partner를, 남이 쓴 글이면 작성자(gecko)를 보여줌 */}
+                            {(() => {
+                              const isMine = log.gecko === gecko.id; // 이 로그가 내 것인가?
+                              const other = isMine
+                                ? log.partner_detail
+                                : log.gecko_detail; // 상대방 객체
+                              const externalName = isMine
+                                ? log.partner_name
+                                : ""; // 외부 이름
+
+                              if (other) {
+                                return (
+                                  <Link
+                                    href={`/geckos/${other.id}`}
+                                    className="flex items-center space-x-1 text-blue-600 hover:underline font-bold"
+                                  >
+                                    <span>with {other.name}</span>
+                                    <span className="text-[10px] text-gray-400">
+                                      ↗
+                                    </span>
+                                  </Link>
+                                );
+                              } else if (externalName) {
+                                return (
+                                  <span className="text-gray-700 font-bold">
+                                    with {externalName} (외부)
+                                  </span>
+                                );
+                              } else {
+                                return (
+                                  <span className="text-gray-400">
+                                    파트너 정보 없음
+                                  </span>
+                                );
+                              }
+                            })()}
                           </div>
                         ) : (
                           "-"

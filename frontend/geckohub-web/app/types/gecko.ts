@@ -7,9 +7,20 @@ export interface CareLog {
   log_date: string;
   weight: number | null;
   note: string;
+
+  // 산란 관련
   egg_count?: number;
   is_fertile?: boolean;
   egg_condition?: string;
+
+  // 메이팅 관련
+  partner?: number;
+  partner_detail?: ParentGecko;
+  mating_success?: boolean;
+  partner_name?: string;
+
+  //이 로그의 주인 정보
+  gecko_detail?: ParentGecko;
 }
 
 // 1. 부모용 미니 타입 정의
