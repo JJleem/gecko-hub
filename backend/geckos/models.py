@@ -30,6 +30,8 @@ class Gecko(models.Model):
     # on_delete=models.SET_NULL: 부모가 DB에서 삭제돼도 자식은 안 지워지고 부모란만 비워짐
     sire = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='sire_children', verbose_name="부(아빠)")
     dam = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='dam_children', verbose_name="모(엄마)")
+    sire_name = models.CharField(max_length=50, blank=True, null=True)
+    dam_name = models.CharField(max_length=50, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     ACQUISITION_CHOICES = [

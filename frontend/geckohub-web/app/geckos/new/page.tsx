@@ -4,8 +4,8 @@ import { useState, useEffect, ChangeEvent, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-// 타입 경로 확인 필요
-import MorphModal from "@/app/components/MorphModal"; // 모프 모달 import
+
+import MorphModal from "@/app/components/MorphModal";
 import { Gecko } from "@/app/types/gecko";
 
 export default function NewGeckoPage() {
@@ -15,6 +15,10 @@ export default function NewGeckoPage() {
 
   // 모프 모달 상태
   const [isMorphModalOpen, setIsMorphModalOpen] = useState(false);
+
+  // 🔥 [추가] 부모 직접 입력 모드 여부
+  const [isManualSire, setIsManualSire] = useState(false);
+  const [isManualDam, setIsManualDam] = useState(false);
 
   // 부모 후보군 데이터
   const [males, setMales] = useState<Gecko[]>([]);
@@ -26,18 +30,22 @@ export default function NewGeckoPage() {
     gender: "Unknown",
     birth_date: "",
     description: "",
-    sire: "",
-    dam: "",
-    weight: "",
+
+    // 부모 정보
+    sire: "", // ID
+    sire_name: "", // [추가] 직접 입력 이름
+    dam: "", // ID
+    dam_name: "", // [추가] 직접 입력 이름
+
     tail_loss: false,
     mbd: false,
     has_spots: false,
     acquisition_type: "Purchased",
     acquisition_source: "",
+    weight: "",
   });
   const [file, setFile] = useState<File | null>(null);
 
-  // 1. 컴포넌트 마운트 시 전체 개체 리스트 불러와서 성별로 나누기
   useEffect(() => {
     const fetchCandidates = async () => {
       try {
@@ -84,16 +92,25 @@ export default function NewGeckoPage() {
       if (formData.birth_date) data.append("birth_date", formData.birth_date);
       data.append("description", formData.description);
 
-      // 부모 ID 추가
-      if (formData.sire) data.append("sire", formData.sire);
-      if (formData.dam) data.append("dam", formData.dam);
-      if (formData.weight) data.append("weight", formData.weight);
-      // 🔥 [추가] 건강 및 입양 정보 (Boolean -> String 변환)
+      // 🔥 [수정] 부모 정보 처리 로직 (ID vs 이름)
+      if (!isManualSire && formData.sire) {
+        data.append("sire", formData.sire);
+      } else if (isManualSire && formData.sire_name) {
+        data.append("sire_name", formData.sire_name);
+      }
+
+      if (!isManualDam && formData.dam) {
+        data.append("dam", formData.dam);
+      } else if (isManualDam && formData.dam_name) {
+        data.append("dam_name", formData.dam_name);
+      }
+
       data.append("tail_loss", formData.tail_loss ? "true" : "false");
       data.append("mbd", formData.mbd ? "true" : "false");
       data.append("has_spots", formData.has_spots ? "true" : "false");
       data.append("acquisition_type", formData.acquisition_type);
       data.append("acquisition_source", formData.acquisition_source);
+      if (formData.weight) data.append("weight", formData.weight);
 
       if (file) {
         data.append("profile_image", file);
@@ -119,7 +136,6 @@ export default function NewGeckoPage() {
 
   return (
     <main className="min-h-screen p-8 bg-gray-50 text-black">
-      {/* 모프 선택 모달 */}
       <MorphModal
         isOpen={isMorphModalOpen}
         onClose={() => setIsMorphModalOpen(false)}
@@ -133,7 +149,7 @@ export default function NewGeckoPage() {
         <h1 className="text-2xl font-bold mb-6">🦎 새 가족 등록하기</h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* 이미지 업로드 */}
+          {/* ... 이미지, 기본 정보 (기존 동일) ... */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               프로필 사진
@@ -163,7 +179,6 @@ export default function NewGeckoPage() {
             </div>
           </div>
 
-          {/* 기본 정보 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">
@@ -179,7 +194,6 @@ export default function NewGeckoPage() {
               />
             </div>
 
-            {/* 🔥 [변경] 모프 입력 (모달 트리거) */}
             <div>
               <label className="block text-sm font-medium text-gray-700">
                 모프
@@ -222,18 +236,8 @@ export default function NewGeckoPage() {
                 <option value="Female">암컷</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                해칭일
-              </label>
-              <input
-                type="date"
-                name="birth_date"
-                value={formData.birth_date}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none"
-              />
-            </div>
+
+            {/* 몸무게 */}
             <div>
               <label className="block text-sm font-medium text-gray-700">
                 현재 몸무게 (g)
@@ -253,9 +257,21 @@ export default function NewGeckoPage() {
                 </div>
               </div>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                해칭일
+              </label>
+              <input
+                type="date"
+                name="birth_date"
+                value={formData.birth_date}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none"
+              />
+            </div>
           </div>
 
-          {/* 🔥 [추가] 🏥 건강 및 특징 (체크박스 그룹) */}
           <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
             <h3 className="text-sm font-bold text-gray-700 mb-3">
               🏥 건강 및 특징
@@ -270,9 +286,7 @@ export default function NewGeckoPage() {
                   }
                   className="w-4 h-4 text-orange-500 rounded focus:ring-orange-400"
                 />
-                <span className="text-sm text-gray-700">
-                  ✂️ 꼬리 부절 (Tail Loss)
-                </span>
+                <span className="text-sm text-gray-700">✂️ 꼬리 부절</span>
               </label>
               <label className="flex items-center space-x-2 cursor-pointer">
                 <input
@@ -294,14 +308,11 @@ export default function NewGeckoPage() {
                   }
                   className="w-4 h-4 text-gray-800 rounded focus:ring-gray-600"
                 />
-                <span className="text-sm text-gray-700">
-                  ⚫ 점 있음 (Spots)
-                </span>
+                <span className="text-sm text-gray-700">⚫ 점 있음</span>
               </label>
             </div>
           </div>
 
-          {/* 🔥 [추가] 🏠 입양 정보 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-blue-50 p-4 rounded-lg border border-blue-100">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -319,8 +330,6 @@ export default function NewGeckoPage() {
                 <option value="Rescue">🚑 구조/기타</option>
               </select>
             </div>
-
-            {/* 직접 해칭이 아닐 때만 입양처 입력칸 보이기 */}
             {formData.acquisition_type !== "Hatched" && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -344,43 +353,102 @@ export default function NewGeckoPage() {
             )}
           </div>
 
-          {/* 부모 선택 영역 */}
+          {/* 🔥 [변경] 부모 선택 영역 (직접 입력 토글 추가) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
+            {/* 아빠 (Sire) */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">
-                부 (Sire)
-              </label>
-              <select
-                name="sire"
-                value={formData.sire}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none"
-              >
-                <option value="">선택 안 함 (Unknown)</option>
-                {males.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name} ({g.morph})
-                  </option>
-                ))}
-              </select>
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-sm font-medium text-gray-700">
+                  부 (Sire)
+                </label>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="manualSire"
+                    checked={isManualSire}
+                    onChange={(e) => setIsManualSire(e.target.checked)}
+                    className="w-3 h-3 text-blue-600 rounded"
+                  />
+                  <label
+                    htmlFor="manualSire"
+                    className="ml-1 text-xs text-gray-500 cursor-pointer"
+                  >
+                    직접 입력
+                  </label>
+                </div>
+              </div>
+              {!isManualSire ? (
+                <select
+                  name="sire"
+                  value={formData.sire}
+                  onChange={handleChange}
+                  className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                >
+                  <option value="">선택 안 함 (Unknown)</option>
+                  {males.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name} ({g.morph})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  name="sire_name"
+                  value={formData.sire_name}
+                  onChange={handleChange}
+                  placeholder="부 개체 이름 직접 입력"
+                  className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+              )}
             </div>
+
+            {/* 엄마 (Dam) */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">
-                모 (Dam)
-              </label>
-              <select
-                name="dam"
-                value={formData.dam}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none"
-              >
-                <option value="">선택 안 함 (Unknown)</option>
-                {females.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name} ({g.morph})
-                  </option>
-                ))}
-              </select>
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-sm font-medium text-gray-700">
+                  모 (Dam)
+                </label>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="manualDam"
+                    checked={isManualDam}
+                    onChange={(e) => setIsManualDam(e.target.checked)}
+                    className="w-3 h-3 text-pink-600 rounded"
+                  />
+                  <label
+                    htmlFor="manualDam"
+                    className="ml-1 text-xs text-gray-500 cursor-pointer"
+                  >
+                    직접 입력
+                  </label>
+                </div>
+              </div>
+              {!isManualDam ? (
+                <select
+                  name="dam"
+                  value={formData.dam}
+                  onChange={handleChange}
+                  className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                >
+                  <option value="">선택 안 함 (Unknown)</option>
+                  {females.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name} ({g.morph})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  name="dam_name"
+                  value={formData.dam_name}
+                  onChange={handleChange}
+                  placeholder="모 개체 이름 직접 입력"
+                  className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+              )}
             </div>
           </div>
 

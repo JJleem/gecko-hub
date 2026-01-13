@@ -49,4 +49,6 @@ export interface Gecko {
   has_spots: boolean;
   acquisition_type: "Purchased" | "Hatched" | "Rescue";
   acquisition_source?: string;
+  sire_name?: string;
+  dam_name?: string;
 }
