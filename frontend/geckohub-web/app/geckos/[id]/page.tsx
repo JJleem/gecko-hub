@@ -1,3 +1,4 @@
+import DeleteButton from "@/app/components/DeleteButton";
 import LogForm from "@/app/components/LogForm";
 import WeightChart from "@/app/components/WeightChart";
 import { Gecko } from "@/app/types/gecko";
@@ -35,14 +36,23 @@ export default async function GeckoDetail({ params }: Props) {
 
   return (
     <main className="min-h-screen p-8 bg-gray-50 text-black">
-      {/* 상단 네비게이션 */}
-      <Link
-        href="/"
-        className="text-blue-500 hover:underline mb-6 inline-block"
-      >
-        &larr; 뒤로 가기
-      </Link>
+      <div className="flex justify-between items-center mb-6">
+        <Link href="/" className="text-blue-500 hover:underline">
+          &larr; 뒤로 가기
+        </Link>
 
+        <div className="flex items-center space-x-2">
+          {/* 수정 버튼 (Link) */}
+          <Link
+            href={`/geckos/${gecko.id}/edit`}
+            className="px-3 py-1 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition"
+          >
+            수정
+          </Link>
+          {/* 삭제 버튼 (Component) */}
+          <DeleteButton id={gecko.id} />
+        </div>
+      </div>
       <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
         {/* 1. 프로필 영역 */}
         <div className="md:flex">
