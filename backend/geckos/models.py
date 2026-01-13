@@ -70,7 +70,7 @@ class CareLog(models.Model):
     egg_count = models.IntegerField(null=True, blank=True) # 알 개수 (1 or 2)
     is_fertile = models.BooleanField(default=False)        # 유정란 여부 (True: 유정, False: 무정)
     egg_condition = models.CharField(max_length=100, blank=True) # 알 상태 (눈꽃, 찌그러짐 등)
-    # 기록용 사진 (예: 똥 상태, 탈피 껍질 등)
+    # 기록용 사진
     image = models.ImageField(upload_to='care_logs/', null=True, blank=True)
     partner = models.ForeignKey('Gecko', 
         on_delete=models.SET_NULL, 
@@ -79,6 +79,8 @@ class CareLog(models.Model):
         related_name='mating_logs')
     partner_name = models.CharField(max_length=50, blank=True, null=True)
     mating_success = models.BooleanField(default=False) # 성공/실패 여부
-
+    incubation_temp = models.FloatField(null=True, blank=True) # 세팅 온도 (예: 24.5)
+    expected_hatching_date = models.DateField(null=True, blank=True) # 해칭 예정일
+    expected_morph = models.CharField(max_length=200, blank=True, null=True)
     def __str__(self):
         return f"{self.gecko.name} - {self.log_type} ({self.log_date})"

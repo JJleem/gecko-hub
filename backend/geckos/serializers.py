@@ -38,8 +38,8 @@ class GeckoSerializer(serializers.ModelSerializer):
             'logs', 
             'is_ovulating',
             'tail_loss', 'mbd', 'has_spots',
-            'acquisition_type', 'acquisition_source', # 👈 여기에 콤마(,) 추가됨
-            'weight' 
+            'acquisition_type', 'acquisition_source', 
+            'weight',
         ]
 
     # 🔥 [추가] 개체 생성 시, 입력한 몸무게가 있으면 자동으로 로그 추가

@@ -54,167 +54,173 @@ export default async function GeckoDetail({ params }: Props) {
         {/* ========================================== */}
         {/* 1. 프로필 영역 */}
         {/* ========================================== */}
-        <div className="md:flex">
-          <div className="md:w-1/2 relative h-80 bg-gray-200">
-            {gecko.profile_image ? (
-              <Image
-                src={gecko.profile_image}
-                alt={gecko.name}
-                fill
-                className="object-cover"
-                unoptimized
-              />
-            ) : (
-              <div className="flex items-center justify-center h-full text-gray-400">
-                No Image
-              </div>
-            )}
-          </div>
-
-          <div className="p-8 md:w-1/2">
-            <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
-              {gecko.name}
-              {gecko.is_ovulating &&
-                (gecko.gender === "Female" ? (
-                  <span className="bg-red-100 text-red-600 text-xs px-2 py-1 rounded-full border border-red-200">
-                    🥚 배란중 (Ovulating)
-                  </span>
-                ) : gecko.gender === "Male" ? (
-                  <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full border border-blue-200">
-                    🔥 발정 (Rut)
-                  </span>
-                ) : null)}
-            </h1>
-            <p className="text-gray-500 mb-6">
-              {gecko.morph || "모프 정보 없음"}
-            </p>
-            <div className="flex flex-wrap gap-2 mb-6">
-              {/* 1. 입양 출처 뱃지 */}
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
-                {gecko.acquisition_type === "Hatched"
-                  ? "🐣 직접 해칭"
-                  : gecko.acquisition_type === "Rescue"
-                  ? "🚑 구조"
-                  : "🏠 입양"}
-                {gecko.acquisition_type !== "Hatched" &&
-                  gecko.acquisition_source && (
-                    <span className="ml-1 border-l border-gray-300 pl-1 text-gray-500">
-                      {gecko.acquisition_source}
-                    </span>
-                  )}
-              </span>
-
-              {/* 2. 건강/특징 뱃지 (조건부 렌더링) */}
-              {gecko.tail_loss && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200">
-                  ✂️ 꼬리 부절
-                </span>
-              )}
-              {gecko.mbd && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
-                  🦴 MBD 이력
-                </span>
-              )}
-              {gecko.has_spots && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-800 text-white border border-gray-600">
-                  ⚫ 점 있음
-                </span>
+        <div className="md:flex-col px-4 ">
+          <div className="flex items-center justify-center">
+            <div className="md:w-1/2 relative h-80 bg-gray-200">
+              {gecko.profile_image ? (
+                <Image
+                  src={gecko.profile_image}
+                  alt={gecko.name}
+                  fill
+                  className="object-cover"
+                  unoptimized
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-400">
+                  No Image
+                </div>
               )}
             </div>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-gray-600">성별</span>
-                <span className="font-medium">
-                  {gecko.gender === "Male"
-                    ? "수컷"
-                    : gecko.gender === "Female"
-                    ? "암컷"
-                    : "미구분"}
-                </span>
-              </div>
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-gray-600">해칭일</span>
-                <span className="font-medium">{gecko.birth_date || "-"}</span>
-              </div>
-
-              {/* 혈통 정보 (Lineage) */}
-              <div className="pt-4 mt-4">
-                {/* ... */}
-                <div className="grid grid-cols-2 gap-4">
-                  {/* 아빠 (Sire) */}
-                  <div className="flex flex-col">
-                    <span className="text-xs text-gray-400 mb-1">
-                      부 (Sire)
+            <div className="p-8 md:w-1/2">
+              <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
+                {gecko.name}
+                {gecko.is_ovulating &&
+                  (gecko.gender === "Female" ? (
+                    <span className="bg-red-100 text-red-600 text-xs px-2 py-1 rounded-full border border-red-200">
+                      🥚 배란중 (Ovulating)
                     </span>
-
-                    {/* 1. 내부 개체 ID가 있을 때 (링크) */}
-                    {gecko.sire_detail ? (
-                      <Link
-                        href={`/geckos/${gecko.sire_detail.id}`}
-                        className="..."
-                      >
-                        {/* ... 기존 이미지 및 이름 표시 코드 ... */}
-                      </Link>
-                    ) : gecko.sire_name ? (
-                      /* 2. 🔥 [추가] 직접 입력한 이름이 있을 때 (텍스트) */
-                      <div className="flex items-center p-2 bg-gray-50 rounded-lg border border-gray-200">
-                        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center mr-3 text-lg">
-                          🦕
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-gray-700">
-                            {gecko.sire_name}
-                          </p>
-                          <p className="text-[10px] text-gray-400">외부 개체</p>
-                        </div>
-                      </div>
-                    ) : (
-                      /* 3. 아무것도 없을 때 */
-                      <div className="p-2 bg-gray-50 rounded-lg text-sm text-gray-400 border border-gray-100">
-                        정보 없음
-                      </div>
+                  ) : gecko.gender === "Male" ? (
+                    <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full border border-blue-200">
+                      🔥 발정 (Rut)
+                    </span>
+                  ) : null)}
+              </h1>
+              <p className="text-gray-500 mb-6">
+                {gecko.morph || "모프 정보 없음"}
+              </p>
+              <div className="flex flex-wrap gap-2 mb-6">
+                {/* 1. 입양 출처 뱃지 */}
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
+                  {gecko.acquisition_type === "Hatched"
+                    ? "🐣 직접 해칭"
+                    : gecko.acquisition_type === "Rescue"
+                    ? "🚑 구조"
+                    : "🏠 입양"}
+                  {gecko.acquisition_type !== "Hatched" &&
+                    gecko.acquisition_source && (
+                      <span className="ml-1 border-l border-gray-300 pl-1 text-gray-500">
+                        {gecko.acquisition_source}
+                      </span>
                     )}
-                  </div>
+                </span>
 
-                  {/* 엄마 (Dam) */}
-                  <div className="flex flex-col">
-                    <span className="text-xs text-gray-400 mb-1">모 (Dam)</span>
+                {/* 2. 건강/특징 뱃지 (조건부 렌더링) */}
+                {gecko.tail_loss && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200">
+                    ✂️ 꼬리 부절
+                  </span>
+                )}
+                {gecko.mbd && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+                    🦴 MBD 이력
+                  </span>
+                )}
+                {gecko.has_spots && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-800 text-white border border-gray-600">
+                    ⚫ 점 있음
+                  </span>
+                )}
+              </div>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between border-b pb-2">
+                  <span className="text-gray-600">성별</span>
+                  <span className="font-medium">
+                    {gecko.gender === "Male"
+                      ? "수컷"
+                      : gecko.gender === "Female"
+                      ? "암컷"
+                      : "미구분"}
+                  </span>
+                </div>
+                <div className="flex justify-between border-b pb-2">
+                  <span className="text-gray-600">해칭일</span>
+                  <span className="font-medium">{gecko.birth_date || "-"}</span>
+                </div>
 
-                    {/* 1. 내부 개체 ID가 있을 때 */}
-                    {gecko.dam_detail ? (
-                      <Link
-                        href={`/geckos/${gecko.dam_detail.id}`}
-                        className="..."
-                      >
-                        {/* ... 기존 코드 ... */}
-                      </Link>
-                    ) : gecko.dam_name ? (
-                      /* 2. 🔥 [추가] 직접 입력한 이름이 있을 때 */
-                      <div className="flex items-center p-2 bg-gray-50 rounded-lg border border-gray-200">
-                        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center mr-3 text-lg">
-                          🦎
+                {/* 혈통 정보 (Lineage) */}
+                <div className="pt-4 mt-4">
+                  {/* ... */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* 아빠 (Sire) */}
+                    <div className="flex flex-col">
+                      <span className="text-xs text-gray-400 mb-1">
+                        부 (Sire)
+                      </span>
+
+                      {/* 1. 내부 개체 ID가 있을 때 (링크) */}
+                      {gecko.sire_detail ? (
+                        <Link
+                          href={`/geckos/${gecko.sire_detail.id}`}
+                          className="..."
+                        >
+                          {/* ... 기존 이미지 및 이름 표시 코드 ... */}
+                        </Link>
+                      ) : gecko.sire_name ? (
+                        /* 2. 🔥 [추가] 직접 입력한 이름이 있을 때 (텍스트) */
+                        <div className="flex items-center p-2 bg-gray-50 rounded-lg border border-gray-200">
+                          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center mr-3 text-lg">
+                            🦕
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-700">
+                              {gecko.sire_name}
+                            </p>
+                            <p className="text-[10px] text-gray-400">
+                              외부 개체
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-bold text-gray-700">
-                            {gecko.dam_name}
-                          </p>
-                          <p className="text-[10px] text-gray-400">외부 개체</p>
+                      ) : (
+                        /* 3. 아무것도 없을 때 */
+                        <div className="p-2 bg-gray-50 rounded-lg text-sm text-gray-400 border border-gray-100">
+                          정보 없음
                         </div>
-                      </div>
-                    ) : (
-                      /* 3. 정보 없음 */
-                      <div className="p-2 bg-gray-50 rounded-lg text-sm text-gray-400 border border-gray-100">
-                        정보 없음
-                      </div>
-                    )}
+                      )}
+                    </div>
+
+                    {/* 엄마 (Dam) */}
+                    <div className="flex flex-col">
+                      <span className="text-xs text-gray-400 mb-1">
+                        모 (Dam)
+                      </span>
+
+                      {/* 1. 내부 개체 ID가 있을 때 */}
+                      {gecko.dam_detail ? (
+                        <Link
+                          href={`/geckos/${gecko.dam_detail.id}`}
+                          className="..."
+                        >
+                          {/* ... 기존 코드 ... */}
+                        </Link>
+                      ) : gecko.dam_name ? (
+                        /* 2. 🔥 [추가] 직접 입력한 이름이 있을 때 */
+                        <div className="flex items-center p-2 bg-gray-50 rounded-lg border border-gray-200">
+                          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center mr-3 text-lg">
+                            🦎
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-700">
+                              {gecko.dam_name}
+                            </p>
+                            <p className="text-[10px] text-gray-400">
+                              외부 개체
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        /* 3. 정보 없음 */
+                        <div className="p-2 bg-gray-50 rounded-lg text-sm text-gray-400 border border-gray-100">
+                          정보 없음
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-
-            <div className="mt-6 p-4 bg-gray-50 rounded-lg text-sm text-gray-700">
-              {gecko.description || "특이사항이 없습니다."}
-            </div>
+          </div>
+          <div className=" p-4 bg-gray-50 rounded-lg text-sm text-gray-700">
+            {gecko.description || "특이사항이 없습니다."}
           </div>
         </div>
         {/* ========================================== */}
