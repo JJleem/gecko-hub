@@ -93,17 +93,88 @@ export default async function GeckoDetail({ params }: Props) {
                 <span className="text-gray-600">해칭일</span>
                 <span className="font-medium">{gecko.birth_date || "-"}</span>
               </div>
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-gray-600">부 (Sire)</span>
-                <span className="font-medium">
-                  {gecko.sire ? `ID: ${gecko.sire}` : "Unknown"}
-                </span>
-              </div>
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-gray-600">모 (Dam)</span>
-                <span className="font-medium">
-                  {gecko.dam ? `ID: ${gecko.dam}` : "Unknown"}
-                </span>
+              {/* 부모 정보 (Link 카드 형태) */}
+              <div className=" pt-4 mt-4">
+                <h3 className="text-sm font-bold text-gray-500 mb-3">
+                  🩸 혈통 정보 (Lineage)
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* 아빠 (Sire) */}
+                  <div className="flex flex-col">
+                    <span className="text-xs text-gray-400 mb-1">
+                      부 (Sire)
+                    </span>
+                    {gecko.sire_detail ? (
+                      <Link
+                        href={`/geckos/${gecko.sire_detail.id}`}
+                        className="flex items-center p-2 bg-blue-50 rounded-lg hover:bg-blue-100 transition border border-blue-100"
+                      >
+                        <div className="relative w-10 h-10 rounded-full bg-gray-300 overflow-hidden mr-3 flex-shrink-0">
+                          {gecko.sire_detail.profile_image ? (
+                            <Image
+                              src={gecko.sire_detail.profile_image}
+                              alt="Sire"
+                              fill
+                              className="object-cover"
+                              unoptimized
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gray-300" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-gray-800">
+                            {gecko.sire_detail.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            View Profile &rarr;
+                          </p>
+                        </div>
+                      </Link>
+                    ) : (
+                      <div className="p-2 bg-gray-50 rounded-lg text-sm text-gray-400 border border-gray-100">
+                        정보 없음 (Unknown)
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 엄마 (Dam) */}
+                  <div className="flex flex-col">
+                    <span className="text-xs text-gray-400 mb-1">모 (Dam)</span>
+                    {gecko.dam_detail ? (
+                      <Link
+                        href={`/geckos/${gecko.dam_detail.id}`}
+                        className="flex items-center p-2 bg-pink-50 rounded-lg hover:bg-pink-100 transition border border-pink-100"
+                      >
+                        <div className="relative w-10 h-10 rounded-full bg-gray-300 overflow-hidden mr-3 flex-shrink-0">
+                          {gecko.dam_detail.profile_image ? (
+                            <Image
+                              src={gecko.dam_detail.profile_image}
+                              alt="Dam"
+                              fill
+                              className="object-cover"
+                              unoptimized
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gray-300" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-gray-800">
+                            {gecko.dam_detail.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            View Profile &rarr;
+                          </p>
+                        </div>
+                      </Link>
+                    ) : (
+                      <div className="p-2 bg-gray-50 rounded-lg text-sm text-gray-400 border border-gray-100">
+                        정보 없음 (Unknown)
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
