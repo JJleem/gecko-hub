@@ -7,6 +7,9 @@ export interface CareLog {
   log_date: string;
   weight: number | null;
   note: string;
+  egg_count?: number;
+  is_fertile?: boolean;
+  egg_condition?: string;
 }
 
 // 1. 부모용 미니 타입 정의
@@ -26,10 +29,8 @@ export interface Gecko {
   profile_image: string | null;
   sire: number | null; // ID 값 (수정용)
   dam: number | null; // ID 값 (수정용)
-
-  // 2. 새로 추가된 상세 정보 필드
+  is_ovulating: boolean;
   sire_detail: ParentGecko | null;
   dam_detail: ParentGecko | null;
-
   logs: CareLog[];
 }

@@ -1,4 +1,5 @@
 import DeleteButton from "@/app/components/DeleteButton";
+import EggTracker from "@/app/components/EggTracker";
 import LogForm from "@/app/components/LogForm";
 import WeightChart from "@/app/components/WeightChart";
 import { Gecko } from "@/app/types/gecko";
@@ -73,7 +74,14 @@ export default async function GeckoDetail({ params }: Props) {
           </div>
 
           <div className="p-8 md:w-1/2">
-            <h1 className="text-3xl font-bold mb-2">{gecko.name}</h1>
+            <h1 className="text-3xl font-bold mb-2">
+              {gecko.name}
+              {gecko.is_ovulating && (
+                <span className="bg-red-100 text-red-600 text-xs px-2 py-1 rounded-full border border-red-200">
+                  🥚 배란중 (Ovulating)
+                </span>
+              )}
+            </h1>
             <p className="text-gray-500 mb-6">
               {gecko.morph || "모프 정보 없음"}
             </p>
@@ -187,11 +195,16 @@ export default async function GeckoDetail({ params }: Props) {
         <div className="p-8 border-t">
           <WeightChart logs={gecko.logs} />
         </div>
-
+        {gecko.gender === "Female" && (
+          <div className="px-8 pb-4">
+            <EggTracker logs={gecko.logs} />
+          </div>
+        )}
         {/* 사육 기록 (Logs) 영역 */}
         <div className="p-8 border-t">
           <h2 className="text-xl font-bold mb-4">📝 사육 일지</h2>
           <LogForm geckoId={gecko.id} />
+
           {gecko.logs && gecko.logs.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
@@ -199,7 +212,8 @@ export default async function GeckoDetail({ params }: Props) {
                   <tr>
                     <th className="px-4 py-3">날짜</th>
                     <th className="px-4 py-3">타입</th>
-                    <th className="px-4 py-3">무게(g)</th>
+                    {/* [변경 1] 헤더 이름 변경: 무게 -> 내용 (무게/알) */}
+                    <th className="px-4 py-3">내용 (무게/알)</th>
                     <th className="px-4 py-3">메모</th>
                   </tr>
                 </thead>
@@ -208,21 +222,56 @@ export default async function GeckoDetail({ params }: Props) {
                     <tr key={log.id} className="border-b hover:bg-gray-50">
                       <td className="px-4 py-3">{log.log_date}</td>
                       <td className="px-4 py-3">
+                        {/* [변경 2] 뱃지 색상 및 텍스트 처리 (산란 추가) */}
                         <span
                           className={`px-2 py-1 rounded text-xs text-white
-                          ${
-                            log.log_type === "Feeding"
-                              ? "bg-green-500"
-                              : log.log_type === "Weight"
-                              ? "bg-blue-500"
-                              : "bg-gray-500"
-                          }`}
+                  ${
+                    log.log_type === "Feeding"
+                      ? "bg-green-500"
+                      : log.log_type === "Weight"
+                      ? "bg-blue-500"
+                      : log.log_type === "Laying" // 산란일 때 주황색
+                      ? "bg-orange-500"
+                      : "bg-gray-500"
+                  }`}
                         >
-                          {log.log_type}
+                          {log.log_type === "Laying" ? "🥚 산란" : log.log_type}
                         </span>
                       </td>
-                      <td className="px-4 py-3 font-bold">
-                        {log.weight ? `${log.weight}g` : "-"}
+
+                      {/* [변경 3] 무게 또는 알 정보 표시 로직 */}
+                      <td className="px-4 py-3">
+                        {log.log_type === "Weight" && log.weight ? (
+                          <span className="font-bold">{log.weight}g</span>
+                        ) : log.log_type === "Laying" ? (
+                          <div className="flex items-center text-sm">
+                            {/* 유정란/무정란 표시 */}
+                            <span
+                              className={
+                                log.is_fertile
+                                  ? "text-blue-600 font-bold"
+                                  : "text-red-500 font-bold"
+                              }
+                            >
+                              {log.is_fertile ? "유정란" : "무정란"}
+                            </span>
+                            <span className="mx-2 text-gray-300">|</span>
+
+                            {/* 개수 표시 */}
+                            <span className="font-medium">
+                              {log.egg_count}개
+                            </span>
+
+                            {/* 알 상태 메모가 있으면 괄호로 표시 */}
+                            {log.egg_condition && (
+                              <span className="ml-2 text-xs text-gray-500">
+                                ({log.egg_condition})
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          "-"
+                        )}
                       </td>
                       <td className="px-4 py-3 text-gray-600">{log.note}</td>
                     </tr>

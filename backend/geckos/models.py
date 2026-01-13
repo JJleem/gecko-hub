@@ -14,7 +14,7 @@ class Gecko(models.Model):
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES, default='Unknown', verbose_name="성별")
     birth_date = models.DateField(null=True, blank=True, verbose_name="해칭일(생일)")
     adoption_date = models.DateField(null=True, blank=True, verbose_name="입양일")
-    
+    is_ovulating = models.BooleanField(default=False)
     # 이미지 (media/gecko_profiles 폴더에 저장됨)
     profile_image = models.ImageField(upload_to='gecko_profiles/', null=True, blank=True, verbose_name="프로필 사진")
     
@@ -40,17 +40,18 @@ class CareLog(models.Model):
         ('Shedding', '탈피'),
         ('Cleaning', '청소'),
         ('Etc', '기타'),
+        ('Laying', 'Laying')
     )
 
     # 어떤 게코의 기록인지 연결 (Gecko가 삭제되면 기록도 같이 삭제: CASCADE)
     gecko = models.ForeignKey(Gecko, on_delete=models.CASCADE, related_name='logs')
-    
     log_date = models.DateField(verbose_name="기록 날짜")
     log_type = models.CharField(max_length=20, choices=LOG_TYPE_CHOICES, default='Feeding')
-    
     weight = models.FloatField(null=True, blank=True, verbose_name="무게(g)")
     note = models.TextField(blank=True, verbose_name="메모")
-    
+    egg_count = models.IntegerField(null=True, blank=True) # 알 개수 (1 or 2)
+    is_fertile = models.BooleanField(default=False)        # 유정란 여부 (True: 유정, False: 무정)
+    egg_condition = models.CharField(max_length=100, blank=True) # 알 상태 (눈꽃, 찌그러짐 등)
     # 기록용 사진 (예: 똥 상태, 탈피 껍질 등)
     image = models.ImageField(upload_to='care_logs/', null=True, blank=True)
 

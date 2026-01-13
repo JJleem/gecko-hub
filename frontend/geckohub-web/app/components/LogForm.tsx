@@ -13,6 +13,9 @@ export default function LogForm({ geckoId }: { geckoId: number }) {
     log_type: "Feeding",
     weight: "",
     note: "",
+    egg_count: "2",
+    is_fertile: true,
+    egg_condition: "",
   });
 
   const handleSubmit = async (e: FormEvent) => {
@@ -22,11 +25,17 @@ export default function LogForm({ geckoId }: { geckoId: number }) {
     try {
       // 1. 전송할 데이터 준비 (JSON)
       const payload = {
-        gecko: geckoId, // 어떤 게코의 기록인지 ID 연결
+        gecko: geckoId,
         log_date: formData.log_date,
         log_type: formData.log_type,
         weight: formData.weight ? parseFloat(formData.weight) : null,
         note: formData.note,
+        egg_count:
+          formData.log_type === "Laying" ? parseInt(formData.egg_count) : null,
+        is_fertile:
+          formData.log_type === "Laying" ? formData.is_fertile : false,
+        egg_condition:
+          formData.log_type === "Laying" ? formData.egg_condition : "",
       };
 
       // 2. API 호출
@@ -38,7 +47,12 @@ export default function LogForm({ geckoId }: { geckoId: number }) {
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error("기록 저장 실패");
+      if (!res.ok) {
+        const errorData = await res.json(); // 서버가 보낸 구체적인 에러 내용
+        console.log("서버 에러 내용:", errorData); // F12 콘솔에 찍힘
+        alert(`저장 실패: ${JSON.stringify(errorData)}`); // 알림창에 띄움
+        throw new Error("API 요청 실패");
+      }
 
       // 3. 성공 시 처리
       alert("기록되었습니다! 📝");
@@ -91,13 +105,72 @@ export default function LogForm({ geckoId }: { geckoId: number }) {
                 >
                   <option value="Feeding">🦗 피딩</option>
                   <option value="Weight">⚖️ 체중 측정</option>
+                  <option value="Laying">🥚 산란 (Laying)</option>
                   <option value="Shedding">👕 탈피</option>
                   <option value="Cleaning">🧹 청소</option>
                   <option value="Etc">🎸 기타</option>
                 </select>
               </div>
             </div>
-
+            {formData.log_type === "Laying" && (
+              <div className="bg-orange-50 p-3 rounded-lg border border-orange-100 space-y-3">
+                <p className="text-xs font-bold text-orange-600">
+                  🥚 산란 정보 입력
+                </p>
+                <div className="flex space-x-4">
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-500 mb-1">
+                      개수
+                    </label>
+                    <select
+                      value={formData.egg_count}
+                      onChange={(e) =>
+                        setFormData({ ...formData, egg_count: e.target.value })
+                      }
+                      className="w-full border rounded p-2 text-sm"
+                    >
+                      <option value="1">1개</option>
+                      <option value="2">2개</option>
+                    </select>
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-500 mb-1">
+                      유정란 여부
+                    </label>
+                    <select
+                      value={formData.is_fertile ? "true" : "false"}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          is_fertile: e.target.value === "true",
+                        })
+                      }
+                      className="w-full border rounded p-2 text-sm"
+                    >
+                      <option value="true">⭕ 유정란</option>
+                      <option value="false">❌ 무정란</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">
+                    알 상태 (눈꽃, 찌그러짐 등)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.egg_condition}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        egg_condition: e.target.value,
+                      })
+                    }
+                    placeholder="예: 예쁜 눈꽃알, 딤플 있음"
+                    className="w-full border rounded p-2 text-sm"
+                  />
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs text-gray-500 mb-1">

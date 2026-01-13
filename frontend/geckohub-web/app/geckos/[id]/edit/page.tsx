@@ -21,6 +21,7 @@ export default function EditGeckoPage({ params }: { params: { id: string } }) {
     description: "",
     sire: "",
     dam: "",
+    is_ovulating: false,
   });
   const [file, setFile] = useState<File | null>(null);
 
@@ -48,6 +49,7 @@ export default function EditGeckoPage({ params }: { params: { id: string } }) {
           description: myData.description || "",
           sire: myData.sire ? String(myData.sire) : "", // 숫자를 문자로 변환
           dam: myData.dam ? String(myData.dam) : "",
+          is_ovulating: myData.is_ovulating || false,
         });
         if (myData.profile_image) setPreview(myData.profile_image);
 
@@ -98,6 +100,7 @@ export default function EditGeckoPage({ params }: { params: { id: string } }) {
       data.append("name", formData.name);
       data.append("morph", formData.morph);
       data.append("gender", formData.gender);
+      data.append("is_ovulating", formData.is_ovulating ? "true" : "false");
       if (formData.birth_date) data.append("birth_date", formData.birth_date);
       data.append("description", formData.description);
 
@@ -212,6 +215,26 @@ export default function EditGeckoPage({ params }: { params: { id: string } }) {
                 <option value="Male">수컷</option>
                 <option value="Female">암컷</option>
               </select>
+            </div>
+            <div className="flex items-center p-4 bg-red-50 rounded-lg border border-red-100">
+              <input
+                type="checkbox"
+                id="ovulating"
+                checked={formData.is_ovulating}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    is_ovulating: e.target.checked,
+                  }))
+                }
+                className="w-5 h-5 text-red-600 rounded focus:ring-red-500 border-gray-300"
+              />
+              <label
+                htmlFor="ovulating"
+                className="ml-3 text-sm font-bold text-red-700"
+              >
+                현재 배란(Ovulation) 진행 중인가요? 🥚
+              </label>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">
