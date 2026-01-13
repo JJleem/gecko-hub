@@ -1,0 +1,11 @@
+# 가상환경 및 DB 무시
+**/venv/
+**/*.sqlite3
+**/__pycache__/
+**/*.pyc
+
+# 프론트엔드 관련 무시
+**/node_modules/
+**/.next/
+**/.DS_Store
+.env
