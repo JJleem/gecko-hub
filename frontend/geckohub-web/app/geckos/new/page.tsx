@@ -4,11 +4,17 @@ import { useState, useEffect, ChangeEvent, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+// 타입 경로 확인 필요
+import MorphModal from "@/app/components/MorphModal"; // 모프 모달 import
+import { Gecko } from "@/app/types/gecko";
 
 export default function NewGeckoPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+
+  // 모프 모달 상태
+  const [isMorphModalOpen, setIsMorphModalOpen] = useState(false);
 
   // 부모 후보군 데이터
   const [males, setMales] = useState<Gecko[]>([]);
@@ -20,8 +26,14 @@ export default function NewGeckoPage() {
     gender: "Unknown",
     birth_date: "",
     description: "",
-    sire: "", // 아빠 ID (빈 문자열 = 선택 안 함)
-    dam: "", // 엄마 ID
+    sire: "",
+    dam: "",
+    weight: "",
+    tail_loss: false,
+    mbd: false,
+    has_spots: false,
+    acquisition_type: "Purchased",
+    acquisition_source: "",
   });
   const [file, setFile] = useState<File | null>(null);
 
@@ -72,9 +84,16 @@ export default function NewGeckoPage() {
       if (formData.birth_date) data.append("birth_date", formData.birth_date);
       data.append("description", formData.description);
 
-      // 부모 ID 추가 (값이 있을 때만)
+      // 부모 ID 추가
       if (formData.sire) data.append("sire", formData.sire);
       if (formData.dam) data.append("dam", formData.dam);
+      if (formData.weight) data.append("weight", formData.weight);
+      // 🔥 [추가] 건강 및 입양 정보 (Boolean -> String 변환)
+      data.append("tail_loss", formData.tail_loss ? "true" : "false");
+      data.append("mbd", formData.mbd ? "true" : "false");
+      data.append("has_spots", formData.has_spots ? "true" : "false");
+      data.append("acquisition_type", formData.acquisition_type);
+      data.append("acquisition_source", formData.acquisition_source);
 
       if (file) {
         data.append("profile_image", file);
@@ -100,11 +119,21 @@ export default function NewGeckoPage() {
 
   return (
     <main className="min-h-screen p-8 bg-gray-50 text-black">
+      {/* 모프 선택 모달 */}
+      <MorphModal
+        isOpen={isMorphModalOpen}
+        onClose={() => setIsMorphModalOpen(false)}
+        initialSelected={formData.morph}
+        onApply={(selectedMorphs) => {
+          setFormData((prev) => ({ ...prev, morph: selectedMorphs }));
+        }}
+      />
+
       <div className="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-md">
         <h1 className="text-2xl font-bold mb-6">🦎 새 가족 등록하기</h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* ... (이미지 업로드 부분은 기존과 동일) ... */}
+          {/* 이미지 업로드 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               프로필 사진
@@ -117,6 +146,7 @@ export default function NewGeckoPage() {
                     alt="Preview"
                     fill
                     className="object-cover"
+                    unoptimized
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full text-gray-400 text-xs">
@@ -133,6 +163,7 @@ export default function NewGeckoPage() {
             </div>
           </div>
 
+          {/* 기본 정보 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">
@@ -147,19 +178,35 @@ export default function NewGeckoPage() {
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none"
               />
             </div>
+
+            {/* 🔥 [변경] 모프 입력 (모달 트리거) */}
             <div>
               <label className="block text-sm font-medium text-gray-700">
                 모프
               </label>
-              <input
-                type="text"
-                name="morph"
-                value={formData.morph}
-                onChange={handleChange}
-                placeholder="예: 릴리 화이트"
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none"
-              />
+              <div
+                onClick={() => setIsMorphModalOpen(true)}
+                className="mt-1 flex w-full items-center rounded-md border border-gray-300 px-3 py-2 shadow-sm cursor-pointer hover:border-blue-500 hover:ring-1 hover:ring-blue-500 bg-white min-h-[42px]"
+              >
+                {formData.morph ? (
+                  <div className="flex flex-wrap gap-1">
+                    {formData.morph.split(",").map((m, idx) => (
+                      <span
+                        key={idx}
+                        className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full font-medium"
+                      >
+                        {m.trim()}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-gray-400 text-sm">
+                    모프를 선택해주세요
+                  </span>
+                )}
+              </div>
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700">
                 성별
@@ -187,9 +234,117 @@ export default function NewGeckoPage() {
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none"
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                현재 몸무게 (g)
+              </label>
+              <div className="relative mt-1 rounded-md shadow-sm">
+                <input
+                  type="number"
+                  step="0.1"
+                  name="weight"
+                  value={formData.weight}
+                  onChange={handleChange}
+                  placeholder="0.0"
+                  className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                />
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                  <span className="text-gray-500 sm:text-sm">g</span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* 👇 [추가] 부모 선택 영역 */}
+          {/* 🔥 [추가] 🏥 건강 및 특징 (체크박스 그룹) */}
+          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <h3 className="text-sm font-bold text-gray-700 mb-3">
+              🏥 건강 및 특징
+            </h3>
+            <div className="flex space-x-6">
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.tail_loss}
+                  onChange={(e) =>
+                    setFormData({ ...formData, tail_loss: e.target.checked })
+                  }
+                  className="w-4 h-4 text-orange-500 rounded focus:ring-orange-400"
+                />
+                <span className="text-sm text-gray-700">
+                  ✂️ 꼬리 부절 (Tail Loss)
+                </span>
+              </label>
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.mbd}
+                  onChange={(e) =>
+                    setFormData({ ...formData, mbd: e.target.checked })
+                  }
+                  className="w-4 h-4 text-red-500 rounded focus:ring-red-400"
+                />
+                <span className="text-sm text-gray-700">🦴 MBD 이력</span>
+              </label>
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.has_spots}
+                  onChange={(e) =>
+                    setFormData({ ...formData, has_spots: e.target.checked })
+                  }
+                  className="w-4 h-4 text-gray-800 rounded focus:ring-gray-600"
+                />
+                <span className="text-sm text-gray-700">
+                  ⚫ 점 있음 (Spots)
+                </span>
+              </label>
+            </div>
+          </div>
+
+          {/* 🔥 [추가] 🏠 입양 정보 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-blue-50 p-4 rounded-lg border border-blue-100">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                입양 구분
+              </label>
+              <select
+                value={formData.acquisition_type}
+                onChange={(e) =>
+                  setFormData({ ...formData, acquisition_type: e.target.value })
+                }
+                className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              >
+                <option value="Purchased">🏠 입양 (분양)</option>
+                <option value="Hatched">🐣 직접 해칭 (Self)</option>
+                <option value="Rescue">🚑 구조/기타</option>
+              </select>
+            </div>
+
+            {/* 직접 해칭이 아닐 때만 입양처 입력칸 보이기 */}
+            {formData.acquisition_type !== "Hatched" && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {formData.acquisition_type === "Rescue"
+                    ? "구조 장소/경로"
+                    : "입양처 (브리더/샵)"}
+                </label>
+                <input
+                  type="text"
+                  value={formData.acquisition_source}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      acquisition_source: e.target.value,
+                    })
+                  }
+                  placeholder="예: 게코파크, 홍길동 브리더"
+                  className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* 부모 선택 영역 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
             <div>
               <label className="block text-sm font-medium text-gray-700">

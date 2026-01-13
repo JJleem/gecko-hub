@@ -10,6 +10,7 @@ class Gecko(models.Model):
 
     # 기본 정보
     name = models.CharField(max_length=50, verbose_name="이름")
+    weight = models.FloatField(null=True, blank=True)
     morph = models.CharField(max_length=100, blank=True, verbose_name="모프")
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES, default='Unknown', verbose_name="성별")
     birth_date = models.DateField(null=True, blank=True, verbose_name="해칭일(생일)")

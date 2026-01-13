@@ -37,10 +37,28 @@ class GeckoSerializer(serializers.ModelSerializer):
             'logs', 
             'is_ovulating',
             'tail_loss', 'mbd', 'has_spots',
-            'acquisition_type', 'acquisition_source'
+            'acquisition_type', 'acquisition_source', # 👈 여기에 콤마(,) 추가됨
+            'weight' 
         ]
 
-    # 🔥 [중요] 이 함수는 반드시 클래스 안쪽으로 들여쓰기가 되어 있어야 합니다!
+    # 🔥 [추가] 개체 생성 시, 입력한 몸무게가 있으면 자동으로 로그 추가
+    def create(self, validated_data):
+        # 1. 개체 생성
+        gecko = super().create(validated_data)
+        
+        # 2. 초기 몸무게가 있으면 사육일지(CareLog)에 자동 기록
+        if gecko.weight:
+            CareLog.objects.create(
+                gecko=gecko,
+                log_type='Weight',
+                weight=gecko.weight,
+                log_date=gecko.created_at.date(), # 생성된 날짜 기준
+                note='초기 등록 몸무게'
+            )
+        
+        return gecko
+
+    # [로그 가져오기 함수]
     def get_logs(self, obj):
         # 1. 내가 쓴 기록
         my_logs = obj.logs.all() 

@@ -3,8 +3,9 @@
 import { useState, useEffect, ChangeEvent, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import Link from "next/link";
+
 import { Gecko } from "@/app/types/gecko";
+import MorphModal from "@/app/components/MorphModal";
 
 export default function EditGeckoPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -12,7 +13,7 @@ export default function EditGeckoPage({ params }: { params: { id: string } }) {
   const [females, setFemales] = useState<Gecko[]>([]);
   const [loading, setLoading] = useState(true);
   const [preview, setPreview] = useState<string | null>(null);
-
+  const [isMorphModalOpen, setIsMorphModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     morph: "",
@@ -155,6 +156,15 @@ export default function EditGeckoPage({ params }: { params: { id: string } }) {
 
   return (
     <main className="min-h-screen p-8 bg-gray-50 text-black">
+      <MorphModal
+        isOpen={isMorphModalOpen}
+        onClose={() => setIsMorphModalOpen(false)}
+        initialSelected={formData.morph}
+        onApply={(selectedMorphs) => {
+          // 모달에서 선택한 값을 폼 데이터에 반영
+          setFormData((prev) => ({ ...prev, morph: selectedMorphs }));
+        }}
+      />
       <div className="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-md">
         <h1 className="text-2xl font-bold mb-6">🛠 정보 수정하기</h1>
 
@@ -207,13 +217,29 @@ export default function EditGeckoPage({ params }: { params: { id: string } }) {
               <label className="block text-sm font-medium text-gray-700">
                 모프
               </label>
-              <input
-                type="text"
-                name="morph"
-                value={formData.morph}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none"
-              />
+              <div
+                onClick={() => setIsMorphModalOpen(true)}
+                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm cursor-pointer hover:border-blue-500 hover:ring-1 hover:ring-blue-500 bg-white min-h-10.5 flex items-center"
+              >
+                {formData.morph ? (
+                  // 선택된 모프들을 태그 형태로 보여주기 (옵션)
+                  <div className="flex flex-wrap gap-1">
+                    {formData.morph.split(",").map((m, idx) => (
+                      <span
+                        key={idx}
+                        className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full font-medium"
+                      >
+                        {m.trim()}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-gray-400 text-sm">
+                    모프를 선택해주세요
+                  </span>
+                )}
+              </div>
+              {/* 실제 전송될 input은 hidden으로 숨겨두거나 state만 사용해도 됨 */}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">
