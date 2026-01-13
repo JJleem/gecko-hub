@@ -1,16 +1,32 @@
 from rest_framework import serializers
 from .models import Gecko, CareLog
 
+# 1. 부모 정보용 간단한 시리얼라이저 추가 (Main 시리얼라이저 위에 작성)
+class ParentGeckoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Gecko
+        fields = ['id', 'name', 'profile_image']
+
 class CareLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = CareLog
-        fields = '__all__'  # 모든 필드를 JSON으로 내보냄
+        fields = '__all__'
 
 class GeckoSerializer(serializers.ModelSerializer):
-    # 역참조: 이 게코와 연결된 CareLog들을 같이 보여주고 싶을 때 사용
-    # read_only=True: 프론트에서 게코 정보를 수정할 때 로그까지 강제로 수정할 필요 없게 함
     logs = CareLogSerializer(many=True, read_only=True)
+    
+    # 2. 읽기 전용(read_only)으로 부모 상세 정보 필드 추가
+    # source='sire'는 이 필드가 모델의 sire 데이터를 가져온다는 뜻입니다.
+    sire_detail = ParentGeckoSerializer(source='sire', read_only=True)
+    dam_detail = ParentGeckoSerializer(source='dam', read_only=True)
 
     class Meta:
         model = Gecko
-        fields = '__all__'
+        # 3. fields에 *_detail 추가
+        fields = [
+            'id', 'name', 'morph', 'gender', 'birth_date', 
+            'description', 'profile_image', 'created_at', 
+            'sire', 'dam',             # 글 쓸 때 필요한 ID (기존 유지)
+            'sire_detail', 'dam_detail', # 보여줄 때 필요한 상세 정보 (추가)
+            'logs'
+        ]
