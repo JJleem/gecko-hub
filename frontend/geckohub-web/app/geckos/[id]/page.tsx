@@ -1,4 +1,5 @@
 import LogForm from "@/app/components/LogForm";
+import WeightChart from "@/app/components/WeightChart";
 import { Gecko } from "@/app/types/gecko";
 import Image from "next/image";
 import Link from "next/link";
@@ -101,8 +102,12 @@ export default async function GeckoDetail({ params }: Props) {
             </div>
           </div>
         </div>
+        {/* 그래프 영역 (프로필 밑, 로그 위) */}
+        <div className="p-8 border-t">
+          <WeightChart logs={gecko.logs} />
+        </div>
 
-        {/* 2. 사육 기록 (Logs) 영역 */}
+        {/* 사육 기록 (Logs) 영역 */}
         <div className="p-8 border-t">
           <h2 className="text-xl font-bold mb-4">📝 사육 일지</h2>
           <LogForm geckoId={gecko.id} />
