@@ -21,13 +21,27 @@ class Gecko(models.Model):
     # 설명/메모
     description = models.TextField(blank=True, verbose_name="특이사항")
 
+    tail_loss = models.BooleanField(default=False) # 꼬리 부절 여부
+    mbd = models.BooleanField(default=False)       # MBD 여부
+    has_spots = models.BooleanField(default=False) # 점(Spots) 유무
+
     # ⭐ 핵심: 혈통 (자기 자신을 참조하는 1:N 관계)
     # on_delete=models.SET_NULL: 부모가 DB에서 삭제돼도 자식은 안 지워지고 부모란만 비워짐
     sire = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='sire_children', verbose_name="부(아빠)")
     dam = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='dam_children', verbose_name="모(엄마)")
-
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    ACQUISITION_CHOICES = [
+        ('Purchased', '입양 (분양)'),
+        ('Hatched', '직접 해칭 (Self-Hatched)'),
+        ('Rescue', '구조/기타'),
+    ]
+    acquisition_type = models.CharField(
+        max_length=20, 
+        choices=ACQUISITION_CHOICES, 
+        default='Purchased'
+    )
+    acquisition_source = models.CharField(max_length=100, blank=True, null=True) # 입양처 (샵/브리더 이름)
 
     def __str__(self):
         return self.name  # 관리자 페이지에서 이름으로 표시됨

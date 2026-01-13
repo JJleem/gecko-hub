@@ -88,7 +88,39 @@ export default async function GeckoDetail({ params }: Props) {
             <p className="text-gray-500 mb-6">
               {gecko.morph || "모프 정보 없음"}
             </p>
+            <div className="flex flex-wrap gap-2 mb-6">
+              {/* 1. 입양 출처 뱃지 */}
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
+                {gecko.acquisition_type === "Hatched"
+                  ? "🐣 직접 해칭"
+                  : gecko.acquisition_type === "Rescue"
+                  ? "🚑 구조"
+                  : "🏠 입양"}
+                {gecko.acquisition_type !== "Hatched" &&
+                  gecko.acquisition_source && (
+                    <span className="ml-1 border-l border-gray-300 pl-1 text-gray-500">
+                      {gecko.acquisition_source}
+                    </span>
+                  )}
+              </span>
 
+              {/* 2. 건강/특징 뱃지 (조건부 렌더링) */}
+              {gecko.tail_loss && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200">
+                  ✂️ 꼬리 부절
+                </span>
+              )}
+              {gecko.mbd && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+                  🦴 MBD 이력
+                </span>
+              )}
+              {gecko.has_spots && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-800 text-white border border-gray-600">
+                  ⚫ 점 있음
+                </span>
+              )}
+            </div>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between border-b pb-2">
                 <span className="text-gray-600">성별</span>
@@ -195,30 +227,8 @@ export default async function GeckoDetail({ params }: Props) {
             </div>
           </div>
         </div>
-
         {/* ========================================== */}
-        {/* 2. 대시보드 영역 (그래프 & 트래커) */}
-        {/* ========================================== */}
-
-        {/* 몸무게 그래프 */}
-        <div className="p-8 border-t">
-          <WeightChart logs={gecko.logs} />
-        </div>
-
-        {/* 메이팅 기록 (수컷/암컷 모두 표시) */}
-        <div className="px-8 pb-4">
-          <MatingTracker logs={gecko.logs} currentGeckoId={gecko.id} />
-        </div>
-
-        {/* 산란 기록 (암컷만 표시) */}
-        {gecko.gender === "Female" && (
-          <div className="px-8 pb-4">
-            <EggTracker logs={gecko.logs} />
-          </div>
-        )}
-
-        {/* ========================================== */}
-        {/* 3. 통합 사육 일지 (입력 폼 & 테이블) */}
+        {/* 2. 통합 사육 일지 (입력 폼 & 테이블) */}
         {/* ========================================== */}
         <div className="p-8 border-t">
           <h2 className="text-xl font-bold mb-4">📝 사육 일지</h2>
@@ -349,6 +359,26 @@ export default async function GeckoDetail({ params }: Props) {
             </p>
           )}
         </div>
+        {/* ========================================== */}
+        {/* 3. 대시보드 영역 (그래프 & 트래커) */}
+        {/* ========================================== */}
+
+        {/* 몸무게 그래프 */}
+        <div className="p-8 border-t">
+          <WeightChart logs={gecko.logs} />
+        </div>
+
+        {/* 메이팅 기록 (수컷/암컷 모두 표시) */}
+        <div className="px-8 pb-4">
+          <MatingTracker logs={gecko.logs} currentGeckoId={gecko.id} />
+        </div>
+
+        {/* 산란 기록 (암컷만 표시) */}
+        {gecko.gender === "Female" && (
+          <div className="px-8 pb-4">
+            <EggTracker logs={gecko.logs} />
+          </div>
+        )}
       </div>
     </main>
   );

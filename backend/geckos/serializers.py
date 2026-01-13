@@ -35,7 +35,9 @@ class GeckoSerializer(serializers.ModelSerializer):
             'sire', 'dam', 
             'sire_detail', 'dam_detail', 
             'logs', 
-            'is_ovulating'
+            'is_ovulating',
+            'tail_loss', 'mbd', 'has_spots',
+            'acquisition_type', 'acquisition_source'
         ]
 
     # 🔥 [중요] 이 함수는 반드시 클래스 안쪽으로 들여쓰기가 되어 있어야 합니다!

@@ -44,4 +44,9 @@ export interface Gecko {
   sire_detail: ParentGecko | null;
   dam_detail: ParentGecko | null;
   logs: CareLog[];
+  tail_loss: boolean;
+  mbd: boolean;
+  has_spots: boolean;
+  acquisition_type: "Purchased" | "Hatched" | "Rescue";
+  acquisition_source?: string;
 }
