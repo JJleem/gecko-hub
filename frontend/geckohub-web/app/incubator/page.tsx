@@ -2,21 +2,19 @@
 
 import { useEffect, useState, FormEvent } from "react";
 import Link from "next/link";
-import { Gecko, CareLog, ParentGecko } from "../types/gecko"; // 🔥 공통 타입 import
+import { Gecko, CareLog, ParentGecko } from "../types/gecko";
 import {
   INCUBATION_DATA,
   calculateHatchingDate,
 } from "@/app/constants/incubation";
+import { calculateBreeding } from "@/app/utils/morphCalculator";
+import Image from "next/image";
 
-// ❌ [삭제] 로컬 CareLog, GeckoWithLogs 인터페이스 삭제 (충돌 원인)
-
-// 화면 표시용 타입 (이건 유지해도 됨)
 interface EggLog {
   id: number;
   gecko: number;
-  // 직접 타입을 적는 대신 ParentGecko를 재사용하면 안전합니다.
   gecko_detail: ParentGecko;
-  partner_detail?: ParentGecko | null; // morph 속성 충돌 해결됨
+  partner_detail?: ParentGecko | null;
   partner_name?: string | null;
   log_date: string;
   expected_hatching_date: string;
@@ -30,7 +28,15 @@ export default function IncubatorPage() {
   const [eggs, setEggs] = useState<EggLog[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 모달 및 폼 상태
+  // 이미지 경로 처리 함수 개선
+  const getImageUrl = (path: string | null) => {
+    if (!path) return "";
+    if (path.startsWith("http")) return path;
+    // 경로 시작에 /가 없으면 추가
+    const formattedPath = path.startsWith("/") ? path : `/${path}`;
+    return `http://127.0.0.1:8000${formattedPath}`;
+  };
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [females, setFemales] = useState<Gecko[]>([]);
   const [males, setMales] = useState<Gecko[]>([]);
@@ -40,6 +46,7 @@ export default function IncubatorPage() {
     motherId: "",
     fatherId: "",
     fatherName: "",
+    fatherMorph: "노멀", // 초기값 설정
     layDate: new Date().toISOString().split("T")[0],
     eggCount: "2",
     temp: "24.0",
@@ -52,22 +59,57 @@ export default function IncubatorPage() {
     fetchData();
   }, []);
 
+  // 유전 계산기 연동
+  useEffect(() => {
+    let damMorph = "노멀";
+    let sireMorph = "노멀";
+
+    if (formData.motherId) {
+      const mother = females.find((f) => f.id === Number(formData.motherId));
+      if (mother && mother.morph) damMorph = mother.morph;
+    }
+
+    if (isManualFather) {
+      sireMorph = formData.fatherMorph || "노멀";
+    } else if (formData.fatherId) {
+      const father = males.find((m) => m.id === Number(formData.fatherId));
+      if (father && father.morph) sireMorph = father.morph;
+    }
+
+    if (formData.motherId && (isManualFather || formData.fatherId)) {
+      const results = calculateBreeding(sireMorph, damMorph);
+      if (results.length > 0) {
+        const resultString = results
+          .map((r) => `${r.name} ${r.percentage}%`)
+          .join(", ");
+        setFormData((prev) => ({ ...prev, expectedMorph: resultString }));
+      }
+    }
+  }, [
+    formData.motherId,
+    formData.fatherId,
+    isManualFather,
+    formData.fatherMorph,
+    females,
+    males,
+  ]);
+
   const fetchData = async () => {
     try {
       const res = await fetch("http://127.0.0.1:8000/api/geckos/");
-
       const geckos: Gecko[] = await res.json();
 
-      setFemales(geckos.filter((g) => g.gender === "Female"));
+      const females = geckos.filter((g) => g.gender === "Female");
+      setFemales(females);
       setMales(geckos.filter((g) => g.gender === "Male"));
 
-      // 2. 알 수집 및 변환
-      const allEggs: EggLog[] = geckos.flatMap((g) => {
-        // Laying 타입이면서 해칭 예정일이 있는 로그만 필터링
-        // 타입 가드(Type Guard)를 사용하여 expected_hatching_date가 string임을 보장
+      // 🔥 핵심 수정: 오직 암컷(Dam)의 입장에서 작성된 'Laying' 로그만 수집
+      const allEggs: EggLog[] = females.flatMap((g) => {
         const layingLogs = g.logs.filter(
           (l): l is CareLog & { expected_hatching_date: string } =>
-            l.log_type === "Laying" && !!l.expected_hatching_date
+            l.log_type === "Laying" &&
+            !!l.expected_hatching_date &&
+            l.gecko === g.id // 로그의 주인 ID가 현재 암컷 ID와 일치하는 것만 (수컷측 로그 제외)
         );
 
         return layingLogs.map((l) => ({
@@ -78,7 +120,8 @@ export default function IncubatorPage() {
             name: g.name,
             profile_image: g.profile_image,
           },
-          partner_detail: l.partner_detail, // 이제 partner_detail 타입이 맞음
+          // 부체(Sire) 정보: 로그에 기록된 partner(수컷) 정보를 가져옴
+          partner_detail: l.partner_detail,
           partner_name: l.partner_name,
           log_date: l.log_date,
           expected_hatching_date: l.expected_hatching_date,
@@ -89,12 +132,17 @@ export default function IncubatorPage() {
         }));
       });
 
-      allEggs.sort(
+      // 중복 제거 (혹시 모를 API 중복 대비)
+      const uniqueEggs = Array.from(
+        new Map(allEggs.map((item) => [item.id, item])).values()
+      );
+
+      uniqueEggs.sort(
         (a, b) =>
           new Date(a.expected_hatching_date).getTime() -
           new Date(b.expected_hatching_date).getTime()
       );
-      setEggs(allEggs);
+      setEggs(uniqueEggs);
     } catch (err) {
       console.error(err);
     } finally {
@@ -102,8 +150,6 @@ export default function IncubatorPage() {
     }
   };
 
-  // ... (이하 나머지 코드는 동일) ...
-  // 자동 계산
   useEffect(() => {
     const estimated = calculateHatchingDate(
       formData.layDate,
@@ -125,14 +171,12 @@ export default function IncubatorPage() {
         log_date: formData.layDate,
         egg_count: parseInt(formData.eggCount),
         is_fertile: true,
-
         partner: isManualFather
           ? null
           : formData.fatherId
           ? parseInt(formData.fatherId)
           : null,
         partner_name: isManualFather ? formData.fatherName : "",
-
         incubation_temp: parseFloat(formData.temp),
         expected_hatching_date: formData.expectedDate,
         expected_morph: formData.expectedMorph,
@@ -151,10 +195,12 @@ export default function IncubatorPage() {
       setIsModalOpen(false);
       fetchData();
 
+      // 🔥 [TS 에러 해결] 모든 필드를 포함하여 초기화
       setFormData({
         motherId: "",
         fatherId: "",
         fatherName: "",
+        fatherMorph: "노멀",
         layDate: new Date().toISOString().split("T")[0],
         eggCount: "2",
         temp: "24.0",
@@ -197,7 +243,6 @@ export default function IncubatorPage() {
           </button>
         </div>
 
-        {/* 알 리스트 */}
         <div className="space-y-4">
           {eggs.map((egg) => {
             const dday = getDday(egg.expected_hatching_date);
@@ -215,26 +260,33 @@ export default function IncubatorPage() {
 
             return (
               <div
-                key={egg.id}
+                key={`egg-${egg.gecko}-${egg.id}`}
                 className="bg-white p-5 rounded-xl shadow-sm border border-yellow-100 relative overflow-hidden"
               >
                 <div className="absolute -right-4 -top-4 text-9xl opacity-5 select-none pointer-events-none">
                   🥚
                 </div>
-
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden border">
-                      {egg.gecko_detail.profile_image && (
-                        <img
-                          src={`http://127.0.0.1:8000${egg.gecko_detail.profile_image}`}
-                          className="w-full h-full object-cover"
+                    <div className="relative w-10 h-10 bg-gray-200 rounded-full overflow-hidden border">
+                      {egg.gecko_detail.profile_image ? (
+                        <Image
+                          src={getImageUrl(egg.gecko_detail.profile_image)}
+                          fill
+                          className="object-cover"
                           alt="모체"
+                          unoptimized
                         />
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-[10px] text-gray-400 font-bold">
+                          NO IMG
+                        </div>
                       )}
                     </div>
                     <div>
-                      <div className="text-xs text-gray-500">모체 (Dam)</div>
+                      <div className="text-xs text-gray-500 font-medium">
+                        모체 (Dam)
+                      </div>
                       <div className="font-bold text-gray-800">
                         {egg.gecko_detail.name}
                       </div>
@@ -252,17 +304,18 @@ export default function IncubatorPage() {
                   <span className="text-right font-medium truncate">
                     {egg.partner_detail?.name || egg.partner_name || "-"}
                   </span>
-
+                  <span className="text-gray-500 font-medium">알 개수</span>
+                  <span className="text-right font-bold text-orange-600">
+                    {egg.egg_count}개 {egg.egg_count === 2 ? "🥚🥚" : "🥚"}
+                  </span>
                   <span className="text-gray-500">관리 온도</span>
                   <span className="text-right font-medium">
                     {egg.incubation_temp}°C
                   </span>
-
                   <span className="text-gray-500">해칭 예정</span>
-                  <span className="text-right font-medium text-blue-600">
+                  <span className="text-right font-medium text-blue-600 font-bold">
                     {egg.expected_hatching_date}
                   </span>
-
                   {egg.note && (
                     <>
                       <span className="text-gray-500">메모</span>
@@ -278,7 +331,7 @@ export default function IncubatorPage() {
                     <span className="text-xs text-purple-400 font-bold block mb-1">
                       🔮 예상 모프
                     </span>
-                    <p className="text-xs text-purple-700 font-medium">
+                    <p className="text-xs text-purple-700 font-medium leading-relaxed">
                       {egg.expected_morph}
                     </p>
                   </div>
@@ -296,21 +349,17 @@ export default function IncubatorPage() {
         )}
       </div>
 
-      {/* 🟢 알 추가 모달 */}
+      {/* 알 추가 모달 */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
             <div className="p-5 border-b bg-yellow-50">
-              <h2 className="text-lg font-bold text-yellow-800">
+              <h2 className="text-lg font-bold text-yellow-800 text-center">
                 🥚 새 클러치(알) 등록
               </h2>
-              <p className="text-xs text-yellow-600">
-                부모 개체와 세팅 환경을 입력해주세요.
-              </p>
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {/* 부모 선택 */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-600 mb-1">
@@ -333,7 +382,6 @@ export default function IncubatorPage() {
                   </select>
                 </div>
 
-                {/* 수컷 선택 */}
                 <div>
                   <div className="flex justify-between items-center mb-1">
                     <label className="block text-xs font-bold text-gray-600">
@@ -372,20 +420,36 @@ export default function IncubatorPage() {
                       ))}
                     </select>
                   ) : (
-                    <input
-                      type="text"
-                      placeholder="외부 수컷 이름"
-                      value={formData.fatherName}
-                      onChange={(e) =>
-                        setFormData({ ...formData, fatherName: e.target.value })
-                      }
-                      className="w-full border rounded-lg p-2 text-sm focus:border-blue-500 outline-none text-gray-800"
-                    />
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        placeholder="외부 수컷 이름"
+                        value={formData.fatherName}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            fatherName: e.target.value,
+                          })
+                        }
+                        className="w-full border rounded-lg p-2 text-sm outline-none text-gray-800"
+                      />
+                      <input
+                        type="text"
+                        placeholder="수컷 모프 (유전 계산용)"
+                        value={formData.fatherMorph}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            fatherMorph: e.target.value,
+                          })
+                        }
+                        className="w-full border rounded-lg p-2 text-sm bg-gray-50 outline-none text-gray-800"
+                      />
+                    </div>
                   )}
                 </div>
               </div>
 
-              {/* 산란일 & 개수 */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-600 mb-1">
@@ -417,17 +481,16 @@ export default function IncubatorPage() {
                 </div>
               </div>
 
-              {/* 온도 세팅 */}
-              <div className="bg-gray-50 p-3 rounded-lg border">
-                <label className="block text-xs font-bold text-gray-600 mb-1">
-                  인큐베이터 온도 (자동 계산)
+              <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                <label className="block text-xs font-bold text-gray-600 mb-1 text-center">
+                  🌡️ 인큐베이터 온도 설정
                 </label>
                 <select
                   value={formData.temp}
                   onChange={(e) =>
                     setFormData({ ...formData, temp: e.target.value })
                   }
-                  className="w-full border rounded-lg p-2 text-sm mb-2 text-gray-800"
+                  className="w-full border rounded-lg p-2 text-sm mb-3 text-gray-800 font-bold"
                 >
                   {INCUBATION_DATA.map((d) => (
                     <option key={d.temp} value={d.temp}>
@@ -435,31 +498,31 @@ export default function IncubatorPage() {
                     </option>
                   ))}
                 </select>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500">예상 해칭일:</span>
-                  <span className="font-bold text-blue-600">
+                <div className="flex justify-between items-center text-xs px-2">
+                  <span className="text-gray-500 font-bold">
+                    계산된 해칭일:
+                  </span>
+                  <span className="font-bold text-blue-600 text-sm">
                     {formData.expectedDate}
                   </span>
                 </div>
               </div>
 
-              {/* 예상 모프 */}
-              <div>
-                <label className="block text-xs font-bold text-gray-600 mb-1">
-                  🔮 예상 모프 (Expected Morph %)
+              <div className="bg-purple-50 p-3 rounded-lg border border-purple-100">
+                <label className="block text-xs font-bold text-purple-700 mb-1">
+                  🔮 예상 모프 (유전 엔진 가동)
                 </label>
-                <input
-                  type="text"
+                <textarea
+                  rows={2}
                   value={formData.expectedMorph}
                   onChange={(e) =>
                     setFormData({ ...formData, expectedMorph: e.target.value })
                   }
-                  placeholder="예: 릴리 50%, 노멀 50%"
-                  className="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-purple-200 outline-none text-gray-800"
+                  placeholder="부모를 선택하면 자동으로 계산됩니다."
+                  className="w-full bg-white border border-purple-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-purple-200 outline-none text-gray-800 font-medium"
                 />
               </div>
 
-              {/* 특이사항 메모 */}
               <div>
                 <label className="block text-xs font-bold text-gray-600 mb-1">
                   📝 특이사항 (Memo)
@@ -470,12 +533,11 @@ export default function IncubatorPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, memo: e.target.value })
                   }
-                  placeholder="예: 알 상태 양호, 좌측 알 약간 찌그러짐"
+                  placeholder="알의 상태나 특이사항을 기록하세요."
                   className="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-gray-200 outline-none text-gray-800"
                 />
               </div>
 
-              {/* 버튼 */}
               <div className="flex gap-2 pt-4">
                 <button
                   type="button"
@@ -496,7 +558,6 @@ export default function IncubatorPage() {
         </div>
       )}
 
-      {/* 하단 네비게이션바 */}
       <div className="fixed bottom-6 left-0 right-0 flex justify-center pointer-events-none">
         <Link
           href="/"
