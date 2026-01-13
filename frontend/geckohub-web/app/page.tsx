@@ -1,6 +1,7 @@
 // app/page.tsx
 import Image from "next/image";
 import { Gecko } from "./types/gecko";
+import Link from "next/link";
 
 // 백엔드 데이터 가져오는 함수
 async function getGeckos(): Promise<Gecko[]> {
@@ -22,14 +23,22 @@ export default async function Home() {
   console.log(geckos);
   return (
     <main className="min-h-screen p-8 bg-gray-100 text-black">
-      <h1 className="text-3xl font-bold mb-8">g</h1>
-
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">b</h1>
+        <Link
+          href="/geckos/new"
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition font-medium"
+        >
+          + 새 개체 등록
+        </Link>
+      </div>
       {/* 그리드 레이아웃 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {geckos.map((gecko) => (
-          <div
+          <Link
+            href={`/geckos/${gecko.id}`}
             key={gecko.id}
-            className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition"
+            className="block bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition cursor-pointer"
           >
             <div className="relative h-48 w-full bg-gray-200">
               {gecko.profile_image ? (
@@ -75,7 +84,7 @@ export default async function Home() {
                 해칭일: {gecko.birth_date || "모름"}
               </p>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
 
