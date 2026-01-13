@@ -7,6 +7,8 @@ import WeightChart from "@/app/components/WeightChart";
 import Image from "next/image";
 import Link from "next/link";
 import { Gecko } from "@/app/types/gecko";
+import HatchingProgress from "@/app/components/HatchingProgress";
+import IncubationSection from "@/app/components/IncubationSection";
 
 // 데이터 가져오기 (SSR)
 async function getGeckoDetail(id: string): Promise<Gecko> {
@@ -30,7 +32,21 @@ type Props = {
 export default async function GeckoDetail({ params }: Props) {
   const { id } = await params;
   const gecko = await getGeckoDetail(id);
-
+  const activeEggs = gecko.logs
+    .filter(
+      (l) =>
+        l.log_type === "Laying" &&
+        l.expected_hatching_date &&
+        // D-Day가 지났더라도 관리자가 완료 처리하기 전까진 보여주고 싶다면 아래 조건 조절
+        new Date(l.expected_hatching_date) >=
+          new Date(new Date().setHours(0, 0, 0, 0))
+    )
+    // 예정일이 가까운 순서대로 정렬
+    .sort(
+      (a, b) =>
+        new Date(a.expected_hatching_date!).getTime() -
+        new Date(b.expected_hatching_date!).getTime()
+    );
   return (
     <main className="min-h-screen p-8 bg-gray-50 text-black">
       {/* 상단 네비게이션 */}
@@ -51,6 +67,7 @@ export default async function GeckoDetail({ params }: Props) {
       </div>
 
       <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+        <IncubationSection activeEggs={activeEggs} />
         {/* ========================================== */}
         {/* 1. 프로필 영역 */}
         {/* ========================================== */}
