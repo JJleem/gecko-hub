@@ -89,32 +89,38 @@ export default function Home() {
         const data: Gecko[] = await res.json();
         setGeckos(data);
 
-        // 인큐베이팅 카운트 및 🔥 오늘 피딩 여부 체크
-        let count = 0;
+        // 🔥 [수정] 알 개수 계산 로직 개선 (중복 제거)
         let fedCount = 0;
-        const todayStr = new Date().toISOString().split("T")[0]; // "YYYY-MM-DD"
+        const todayStr = new Date().toISOString().split("T")[0];
 
+        // 1. 모든 게코의 로그를 하나로 모읍니다.
+        const allLogs = data.flatMap((g) => g.logs);
+
+        // 2. 로그 ID를 기준으로 중복을 제거합니다. (Map 사용)
+        const uniqueLogs = new Map();
+        allLogs.forEach((log) => {
+          uniqueLogs.set(log.id, log);
+        });
+
+        // 3. 중복 없는 로그들 중에서 'Laying' 타입만 골라 알 개수를 더합니다.
+        let totalEggs = 0;
+        for (const log of uniqueLogs.values()) {
+          // 인큐베이팅 카운트 (Laying이면서 해칭일이 있는 경우)
+          if (log.log_type === "Laying" && log.expected_hatching_date) {
+            totalEggs += log.egg_count || 0;
+          }
+        }
+
+        // 4. 피딩 카운트 (개체별로 확인해야 함)
         data.forEach((g) => {
-          // 인큐베이팅 알 개수
-          const eggs = g.logs.filter(
-            (l) => l.log_type === "Laying" && l.expected_hatching_date
-          );
-          count += eggs.length;
-
-          // 🔥 오늘 날짜의 Feeding 로그가 있는지 확인
           const todayFeeding = g.logs.find(
             (l) => l.log_type === "Feeding" && l.log_date === todayStr
           );
           if (todayFeeding) fedCount++;
         });
 
-        setIncubatingCount(count);
+        setIncubatingCount(totalEggs); // 정확한 알 개수 저장
 
-        // 🔥 하나라도 밥을 먹었다면 "오늘 피딩 함"으로 간주 (또는 전체가 먹어야 true로 할 수도 있음)
-        // 여기서는 "전체 개체 수와 피딩한 개체 수가 같으면 완료"로 처리하거나,
-        // 단순하게 "하나라도 기록이 있으면 완료"로 할 수 있습니다.
-        // --> UX상 "일괄 피딩 버튼을 눌렀으면 완료"로 치는게 깔끔하므로,
-        //     데이터에 오늘자 피딩 기록이 하나라도 있으면 버튼을 막겠습니다.
         if (data.length > 0 && fedCount > 0) {
           setIsFedToday(true);
         } else {
@@ -330,7 +336,7 @@ export default function Home() {
                     <span className="font-bold text-2xl mx-1">
                       {incubatingCount}
                     </span>
-                    클러치 관리 중
+                    개의 알 케어 중
                   </div>
                 </div>
                 <div className="text-4xl group-hover:scale-110 transition">

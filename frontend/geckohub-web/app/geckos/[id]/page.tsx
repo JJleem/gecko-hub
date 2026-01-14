@@ -233,7 +233,7 @@ export default async function GeckoDetail({ params }: Props) {
                         </div>
                       ) : (
                         /* 3. 아무것도 없을 때 */
-                        <div className="p-2 bg-gray-50 rounded-lg text-sm text-gray-400 border border-gray-100 flex items-center justify-center h-[58px]">
+                        <div className="p-2 bg-gray-50 rounded-lg text-sm text-gray-400 border border-gray-100 flex items-center justify-center h-14.5">
                           정보 없음
                         </div>
                       )}
@@ -294,7 +294,7 @@ export default async function GeckoDetail({ params }: Props) {
                         </div>
                       ) : (
                         /* 3. 아무것도 없을 때 */
-                        <div className="p-2 bg-gray-50 rounded-lg text-sm text-gray-400 border border-gray-100 flex items-center justify-center h-[58px]">
+                        <div className="p-2 bg-gray-50 rounded-lg text-sm text-gray-400 border border-gray-100 flex items-center justify-center h-14.5">
                           정보 없음
                         </div>
                       )}
