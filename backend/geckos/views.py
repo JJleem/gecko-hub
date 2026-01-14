@@ -19,6 +19,7 @@ class GeckoViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly] 
     
     def get_queryset(self):
+        print(f"👉 현재 요청 유저: {self.request.user} (로그인 여부: {self.request.user.is_authenticated})")
         # 1. 상세 조회 (detail page) 요청일 때
         # => id로 특정 개체를 찾는 것이므로, 내 것이 아니어도(전체 DB에서) 찾을 수 있게 해줍니다.
         if self.action == 'retrieve':

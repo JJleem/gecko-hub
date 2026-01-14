@@ -2,6 +2,8 @@
 
 import { useEffect, useState, FormEvent } from "react";
 import Link from "next/link";
+// 🔥 [추가 1] useSession 임포트
+import { useSession } from "next-auth/react";
 import { Gecko, CareLog, ParentGecko } from "../types/gecko";
 import {
   INCUBATION_DATA,
@@ -25,6 +27,9 @@ interface EggLog {
 }
 
 export default function IncubatorPage() {
+  // 🔥 [추가 2] 세션에서 토큰 꺼내기
+  const { data: session } = useSession();
+
   const [eggs, setEggs] = useState<EggLog[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -32,9 +37,8 @@ export default function IncubatorPage() {
   const getImageUrl = (path: string | null) => {
     if (!path) return "";
     if (path.startsWith("http")) return path;
-    // 경로 시작에 /가 없으면 추가
     const formattedPath = path.startsWith("/") ? path : `/${path}`;
-    return `http://127.0.0.1:8000${formattedPath}`;
+    return `${process.env.NEXT_PUBLIC_API_URL}${formattedPath}`;
   };
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -46,7 +50,7 @@ export default function IncubatorPage() {
     motherId: "",
     fatherId: "",
     fatherName: "",
-    fatherMorph: "노멀", // 초기값 설정
+    fatherMorph: "노멀",
     layDate: new Date().toISOString().split("T")[0],
     eggCount: "2",
     temp: "24.0",
@@ -55,9 +59,12 @@ export default function IncubatorPage() {
     memo: "",
   });
 
+  // 🔥 [수정] fetchData를 useEffect 밖으로 빼고 의존성 문제 해결
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (session?.user?.djangoToken) {
+      fetchData();
+    }
+  }, [session]);
 
   // 유전 계산기 연동
   useEffect(() => {
@@ -95,21 +102,33 @@ export default function IncubatorPage() {
   ]);
 
   const fetchData = async () => {
+    // 🔥 토큰 없으면 요청 안 함
+    if (!session?.user?.djangoToken) return;
+
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/geckos/");
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/geckos/`,
+        {
+          headers: {
+            // 🔥 [핵심] 헤더에 토큰 실어 보내기
+            Authorization: `Bearer ${session.user.djangoToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
       const geckos: Gecko[] = await res.json();
 
       const females = geckos.filter((g) => g.gender === "Female");
       setFemales(females);
       setMales(geckos.filter((g) => g.gender === "Male"));
 
-      // 🔥 핵심 수정: 오직 암컷(Dam)의 입장에서 작성된 'Laying' 로그만 수집
+      // 오직 암컷(Dam)의 입장에서 작성된 'Laying' 로그만 수집
       const allEggs: EggLog[] = females.flatMap((g) => {
         const layingLogs = g.logs.filter(
           (l): l is CareLog & { expected_hatching_date: string } =>
             l.log_type === "Laying" &&
             !!l.expected_hatching_date &&
-            l.gecko === g.id // 로그의 주인 ID가 현재 암컷 ID와 일치하는 것만 (수컷측 로그 제외)
+            l.gecko === g.id
         );
 
         return layingLogs.map((l) => ({
@@ -120,7 +139,6 @@ export default function IncubatorPage() {
             name: g.name,
             profile_image: g.profile_image,
           },
-          // 부체(Sire) 정보: 로그에 기록된 partner(수컷) 정보를 가져옴
           partner_detail: l.partner_detail,
           partner_name: l.partner_name,
           log_date: l.log_date,
@@ -132,7 +150,6 @@ export default function IncubatorPage() {
         }));
       });
 
-      // 중복 제거 (혹시 모를 API 중복 대비)
       const uniqueEggs = Array.from(
         new Map(allEggs.map((item) => [item.id, item])).values()
       );
@@ -163,6 +180,7 @@ export default function IncubatorPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!formData.motherId) return alert("어머니 개체를 선택해주세요.");
+    if (!session?.user?.djangoToken) return alert("로그인이 필요합니다.");
 
     try {
       const payload = {
@@ -183,9 +201,13 @@ export default function IncubatorPage() {
         note: formData.memo,
       };
 
-      const res = await fetch("http://127.0.0.1:8000/api/logs/", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/logs/`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          // 🔥 [핵심] 등록(POST) 할 때도 토큰 필수!
+          Authorization: `Bearer ${session.user.djangoToken}`,
+        },
         body: JSON.stringify(payload),
       });
 
@@ -193,9 +215,8 @@ export default function IncubatorPage() {
 
       alert("알이 인큐베이터에 등록되었습니다! 🥚");
       setIsModalOpen(false);
-      fetchData();
+      fetchData(); // 목록 새로고침
 
-      // 🔥 [TS 에러 해결] 모든 필드를 포함하여 초기화
       setFormData({
         motherId: "",
         fatherId: "",

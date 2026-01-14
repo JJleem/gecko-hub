@@ -121,10 +121,18 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 # Next.js (로컬호스트)에서의 접근 허용
+CORS_ALLOW_CREDENTIALS = True
+
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
+    "http://127.0.0.1:3000", 
 ]
 
+# 🔥 (추가 팁) 나중에 POST 요청(등록)할 때 에러 안 나려면 이것도 필요합니다.
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
 # 이미지 파일 저장 경로 설정
 import os
 MEDIA_URL = '/media/'
@@ -134,6 +142,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
     )
 }
 
