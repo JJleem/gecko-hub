@@ -2,7 +2,6 @@
 
 import { useEffect, useState, FormEvent } from "react";
 import Link from "next/link";
-// 🔥 [추가 1] useSession 임포트
 import { useSession } from "next-auth/react";
 import { Gecko, CareLog, ParentGecko } from "../types/gecko";
 import {
@@ -27,13 +26,14 @@ interface EggLog {
 }
 
 export default function IncubatorPage() {
-  // 🔥 [추가 2] 세션에서 토큰 꺼내기
   const { data: session } = useSession();
 
   const [eggs, setEggs] = useState<EggLog[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 이미지 경로 처리 함수 개선
+  // 🔥 [추가] 수정 중인 로그 ID 저장 (null이면 등록 모드)
+  const [editingId, setEditingId] = useState<number | null>(null);
+
   const getImageUrl = (path: string | null) => {
     if (!path) return "";
     if (path.startsWith("http")) return path;
@@ -59,14 +59,13 @@ export default function IncubatorPage() {
     memo: "",
   });
 
-  // 🔥 [수정] fetchData를 useEffect 밖으로 빼고 의존성 문제 해결
   useEffect(() => {
     if (session?.user?.djangoToken) {
       fetchData();
     }
   }, [session]);
 
-  // 유전 계산기 연동
+  // 유전 계산기 로직
   useEffect(() => {
     let damMorph = "노멀";
     let sireMorph = "노멀";
@@ -83,6 +82,8 @@ export default function IncubatorPage() {
       if (father && father.morph) sireMorph = father.morph;
     }
 
+    // 수정 모드일 때 기존에 입력된 expectedMorph가 있으면 덮어쓰지 않도록 조건 추가 가능
+    // 여기서는 자동으로 다시 계산하도록 둠
     if (formData.motherId && (isManualFather || formData.fatherId)) {
       const results = calculateBreeding(sireMorph, damMorph);
       if (results.length > 0) {
@@ -102,7 +103,6 @@ export default function IncubatorPage() {
   ]);
 
   const fetchData = async () => {
-    // 🔥 토큰 없으면 요청 안 함
     if (!session?.user?.djangoToken) return;
 
     try {
@@ -110,7 +110,6 @@ export default function IncubatorPage() {
         `${process.env.NEXT_PUBLIC_API_URL}/api/geckos/`,
         {
           headers: {
-            // 🔥 [핵심] 헤더에 토큰 실어 보내기
             Authorization: `Bearer ${session.user.djangoToken}`,
             "Content-Type": "application/json",
           },
@@ -122,7 +121,6 @@ export default function IncubatorPage() {
       setFemales(females);
       setMales(geckos.filter((g) => g.gender === "Male"));
 
-      // 오직 암컷(Dam)의 입장에서 작성된 'Laying' 로그만 수집
       const allEggs: EggLog[] = females.flatMap((g) => {
         const layingLogs = g.logs.filter(
           (l): l is CareLog & { expected_hatching_date: string } =>
@@ -167,7 +165,10 @@ export default function IncubatorPage() {
     }
   };
 
+  // 해칭일 자동 계산 (온도/날짜 변경 시)
   useEffect(() => {
+    // 만약 이미 값이 있고, 사용자가 수동으로 건드리지 않았다면 계산 수행
+    // (여기서는 단순화를 위해 변경 시 무조건 재계산)
     const estimated = calculateHatchingDate(
       formData.layDate,
       parseFloat(formData.temp)
@@ -177,6 +178,86 @@ export default function IncubatorPage() {
     }
   }, [formData.layDate, formData.temp]);
 
+  // 🔥 [추가] 폼 초기화 함수
+  const resetForm = () => {
+    setFormData({
+      motherId: "",
+      fatherId: "",
+      fatherName: "",
+      fatherMorph: "노멀",
+      layDate: new Date().toISOString().split("T")[0],
+      eggCount: "2",
+      temp: "24.0",
+      expectedDate: "",
+      expectedMorph: "",
+      memo: "",
+    });
+    setIsManualFather(false);
+    setEditingId(null); // 수정 모드 해제
+    setIsModalOpen(false);
+  };
+
+  // 🔥 [추가] 수정 버튼 클릭 핸들러
+  const handleEditClick = (egg: EggLog) => {
+    setEditingId(egg.id);
+
+    // 기존 데이터 폼에 채우기
+    let manualFather = false;
+    let fId = "";
+    let fName = "";
+
+    // 아빠 정보 분석
+    if (egg.partner_detail) {
+      fId = String(egg.partner_detail.id);
+      manualFather = false;
+    } else if (egg.partner_name) {
+      fName = egg.partner_name;
+      manualFather = true;
+    }
+
+    setFormData({
+      motherId: String(egg.gecko),
+      fatherId: fId,
+      fatherName: fName,
+      fatherMorph: "노멀", // 기존 모프 정보는 별도로 저장 안 했으면 '노멀' 혹은 추후 로직 개선
+      layDate: egg.log_date,
+      eggCount: String(egg.egg_count),
+      temp: String(egg.incubation_temp),
+      expectedDate: egg.expected_hatching_date,
+      expectedMorph: egg.expected_morph,
+      memo: egg.note,
+    });
+
+    setIsManualFather(manualFather);
+    setIsModalOpen(true);
+  };
+
+  // 🔥 [추가] 삭제 버튼 클릭 핸들러
+  const handleDeleteClick = async (id: number) => {
+    if (!confirm("정말 이 알 기록을 삭제하시겠습니까?")) return;
+    if (!session?.user?.djangoToken) return alert("로그인이 필요합니다.");
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/logs/${id}/`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${session.user.djangoToken}`,
+          },
+        }
+      );
+
+      if (!res.ok) throw new Error("삭제 실패");
+      alert("삭제되었습니다.");
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      alert("삭제 중 오류가 발생했습니다.");
+    }
+  };
+
+  // 등록 및 수정 처리
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!formData.motherId) return alert("어머니 개체를 선택해주세요.");
@@ -201,35 +282,27 @@ export default function IncubatorPage() {
         note: formData.memo,
       };
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/logs/`, {
-        method: "POST",
+      // 🔥 editingId가 있으면 PATCH(수정), 없으면 POST(생성)
+      const url = editingId
+        ? `${process.env.NEXT_PUBLIC_API_URL}/api/logs/${editingId}/`
+        : `${process.env.NEXT_PUBLIC_API_URL}/api/logs/`;
+
+      const method = editingId ? "PATCH" : "POST";
+
+      const res = await fetch(url, {
+        method: method,
         headers: {
           "Content-Type": "application/json",
-          // 🔥 [핵심] 등록(POST) 할 때도 토큰 필수!
           Authorization: `Bearer ${session.user.djangoToken}`,
         },
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error("등록 실패");
+      if (!res.ok) throw new Error("요청 실패");
 
-      alert("알이 인큐베이터에 등록되었습니다! 🥚");
-      setIsModalOpen(false);
-      fetchData(); // 목록 새로고침
-
-      setFormData({
-        motherId: "",
-        fatherId: "",
-        fatherName: "",
-        fatherMorph: "노멀",
-        layDate: new Date().toISOString().split("T")[0],
-        eggCount: "2",
-        temp: "24.0",
-        expectedDate: "",
-        expectedMorph: "",
-        memo: "",
-      });
-      setIsManualFather(false);
+      alert(editingId ? "수정되었습니다! ✨" : "알이 등록되었습니다! 🥚");
+      resetForm(); // 폼 초기화 및 모달 닫기
+      fetchData(); // 목록 갱신
     } catch (err) {
       console.error(err);
       alert("오류가 발생했습니다.");
@@ -257,7 +330,10 @@ export default function IncubatorPage() {
             🥚 인큐베이터
           </h1>
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => {
+              resetForm(); // 기존 데이터 비우고 열기
+              setIsModalOpen(true);
+            }}
             className="bg-yellow-500 text-white px-4 py-2 rounded-full font-bold shadow-md hover:bg-yellow-600 transition flex items-center gap-1 text-sm"
           >
             + 알 추가
@@ -282,11 +358,37 @@ export default function IncubatorPage() {
             return (
               <div
                 key={`egg-${egg.gecko}-${egg.id}`}
-                className="bg-white p-5 rounded-xl shadow-sm border border-yellow-100 relative overflow-hidden"
+                className="bg-white p-5 rounded-xl shadow-sm border border-yellow-100 relative overflow-hidden group"
               >
+                {/* 배경 장식 */}
                 <div className="absolute -right-4 -top-4 text-9xl opacity-5 select-none pointer-events-none">
                   🥚
                 </div>
+
+                {/* 🔥 [추가] 수정/삭제 버튼 (카드 우측 상단) */}
+                <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={() => handleEditClick(egg)}
+                    className="p-1.5 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200"
+                    title="수정"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    onClick={() => handleDeleteClick(egg.id)}
+                    className="p-1.5 bg-red-100 text-red-600 rounded-full hover:bg-red-200"
+                    title="삭제"
+                  >
+                    🗑️
+                  </button>
+                </div>
+
+                {/* 모바일에서도 버튼이 보이게 하려면 opacity 관련 클래스 제거 후 항상 표시하거나, 별도 UI 구성 가능 */}
+                {/* 여기서는 편의상 모바일에서도 보이도록 opacity 로직을 sm:hidden 처리하거나 그냥 항상 보이게 수정 */}
+                <div className="absolute top-3 right-3 flex gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                  {/* 모바일 환경 고려하여 항상 보이게 하려면 위 opacity 클래스 제거하세요 */}
+                </div>
+
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center gap-3">
                     <div className="relative w-10 h-10 bg-gray-200 rounded-full overflow-hidden border">
@@ -370,13 +472,13 @@ export default function IncubatorPage() {
         )}
       </div>
 
-      {/* 알 추가 모달 */}
+      {/* 모달 (등록/수정 공용) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
             <div className="p-5 border-b bg-yellow-50">
               <h2 className="text-lg font-bold text-yellow-800 text-center">
-                🥚 새 클러치(알) 등록
+                {editingId ? "✏️ 알 정보 수정" : "🥚 새 클러치(알) 등록"}
               </h2>
             </div>
 
@@ -562,7 +664,7 @@ export default function IncubatorPage() {
               <div className="flex gap-2 pt-4">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={resetForm}
                   className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200"
                 >
                   취소
@@ -571,7 +673,7 @@ export default function IncubatorPage() {
                   type="submit"
                   className="flex-[2] py-3 bg-yellow-500 text-white rounded-xl font-bold hover:bg-yellow-600 shadow-md"
                 >
-                  등록하기
+                  {editingId ? "수정 완료" : "등록하기"}
                 </button>
               </div>
             </form>

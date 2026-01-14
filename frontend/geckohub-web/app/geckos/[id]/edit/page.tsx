@@ -277,7 +277,7 @@ export default function EditGeckoPage({
               </label>
               <div
                 onClick={() => setIsMorphModalOpen(true)}
-                className="mt-1 flex w-full items-center rounded-md border border-gray-300 px-3 py-2 shadow-sm cursor-pointer hover:border-blue-500 hover:ring-1 hover:ring-blue-500 bg-white min-h-[42px]"
+                className="mt-1 flex w-full items-center rounded-md border border-gray-300 px-3 py-2 shadow-sm cursor-pointer hover:border-blue-500 hover:ring-1 hover:ring-blue-500 bg-white min-h-10.5"
               >
                 {formData.morph ? (
                   <div className="flex flex-wrap gap-1">
