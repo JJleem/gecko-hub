@@ -2,7 +2,9 @@ from rest_framework import viewsets, permissions
 from .models import Gecko, CareLog
 from .serializers import GeckoSerializer, CareLogSerializer
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, AllowAny
-
+from .models import UserSettings
+from rest_framework.response import Response
+from rest_framework.views import APIView
 # 게코 목록 조회, 생성, 수정, 삭제(CRUD)를 한방에 처리
 class GeckoViewSet(viewsets.ModelViewSet):
     queryset = Gecko.objects.all().order_by('-created_at') # 최신순 정렬
@@ -35,3 +37,18 @@ class GeckoViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+class UserSettingsView(APIView):
+    permission_classes = [permissions.IsAuthenticated] # 로그인 필수
+
+    def get(self, request):
+        # 없으면 생성하고, 있으면 가져오기 (Get or Create)
+        settings, created = UserSettings.objects.get_or_create(user=request.user)
+        return Response({'feeding_days': settings.feeding_days})
+
+    def post(self, request):
+        settings, created = UserSettings.objects.get_or_create(user=request.user)
+        # 프론트에서 보낸 배열 저장
+        settings.feeding_days = request.data.get('feeding_days', [])
+        settings.save()
+        return Response({'status': 'success', 'feeding_days': settings.feeding_days})

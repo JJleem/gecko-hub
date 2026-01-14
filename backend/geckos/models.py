@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+
 class Gecko(models.Model):
     # 선택지 정의 (성별)
     GENDER_CHOICES = (
@@ -84,3 +85,13 @@ class CareLog(models.Model):
     expected_morph = models.CharField(max_length=200, blank=True, null=True)
     def __str__(self):
         return f"{self.gecko.name} - {self.log_type} ({self.log_date})"
+    
+
+class UserSettings(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='settings')
+    # 요일을 숫자 배열로 저장 (예: [0, 2, 4])
+    # SQLite도 최신 버전은 JSONField 지원하지만, 안전하게 Text로 저장하거나 JSONField 사용
+    feeding_days = models.JSONField(default=list) 
+
+    def __str__(self):
+        return f"{self.user.username}'s Settings"

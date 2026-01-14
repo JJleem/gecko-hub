@@ -5,51 +5,121 @@ import Link from "next/link";
 import Image from "next/image";
 import { Gecko } from "./types/gecko";
 import LoginButton from "./components/LoginButton";
-import { useSession } from "next-auth/react"; // 🔥 세션 훅 추가
+import { useSession } from "next-auth/react";
+
+const DAYS = [
+  { id: 0, label: "일" },
+  { id: 1, label: "월" },
+  { id: 2, label: "화" },
+  { id: 3, label: "수" },
+  { id: 4, label: "목" },
+  { id: 5, label: "금" },
+  { id: 6, label: "토" },
+];
 
 export default function Home() {
-  const { data: session, status } = useSession(); // 🔥 로그인 상태 가져오기
+  const { data: session, status } = useSession();
   const [geckos, setGeckos] = useState<Gecko[]>([]);
-  const [loading, setLoading] = useState(false); // 초기값을 false로 변경 (세션 확인 후 로딩)
+  const [loading, setLoading] = useState(false);
   const [incubatingCount, setIncubatingCount] = useState(0);
 
+  // 피딩 스케줄 상태
+  const [feedingDays, setFeedingDays] = useState<number[]>([]);
+  const [isFeedingDay, setIsFeedingDay] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+
+  // 🔥 [추가] 오늘 이미 밥을 줬는지 확인하는 상태
+  const [isFedToday, setIsFedToday] = useState(false);
+
+  // DB에서 설정 불러오기
   useEffect(() => {
-    // 1. 로그인이 안 되어 있거나 로딩 중이면 fetch 안 함
+    if (!session?.user?.djangoToken) return;
+
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/settings/`,
+          {
+            headers: {
+              Authorization: `Bearer ${session.user.djangoToken}`,
+            },
+          }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setFeedingDays(data.feeding_days || []);
+        }
+      } catch (error) {
+        console.error("설정 로딩 실패", error);
+      }
+    };
+    fetchSettings();
+  }, [session]);
+
+  // 요일 체크 로직
+  useEffect(() => {
+    const today = new Date().getDay();
+    setIsFeedingDay(feedingDays.includes(today));
+  }, [feedingDays]);
+
+  // 게코 데이터 불러오기 및 오늘 피딩 여부 확인
+  useEffect(() => {
     if (status !== "authenticated" || !session?.user.djangoToken) {
-      setGeckos([]); // 로그아웃 상태면 목록 비우기
+      setGeckos([]);
       return;
     }
 
     const fetchGeckos = async () => {
       setLoading(true);
       try {
-        // 2. 🔥 헤더에 Django 토큰을 실어서 보냄 (중요!)
-        const res = await fetch("http://127.0.0.1:8000/api/geckos/", {
-          headers: {
-            Authorization: `Bearer ${session.user.djangoToken}`,
-          },
-        });
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/geckos/`,
+          {
+            headers: {
+              Authorization: `Bearer ${session.user.djangoToken}`,
+            },
+          }
+        );
 
         if (!res.ok) {
-          if (res.status === 401) {
-            console.log("토큰 만료 혹은 인증 실패");
-            return;
-          }
+          if (res.status === 401) return;
           throw new Error("Failed to fetch");
         }
 
         const data: Gecko[] = await res.json();
         setGeckos(data);
 
-        // 인큐베이팅 카운트 계산
+        // 인큐베이팅 카운트 및 🔥 오늘 피딩 여부 체크
         let count = 0;
+        let fedCount = 0;
+        const todayStr = new Date().toISOString().split("T")[0]; // "YYYY-MM-DD"
+
         data.forEach((g) => {
+          // 인큐베이팅 알 개수
           const eggs = g.logs.filter(
             (l) => l.log_type === "Laying" && l.expected_hatching_date
           );
           count += eggs.length;
+
+          // 🔥 오늘 날짜의 Feeding 로그가 있는지 확인
+          const todayFeeding = g.logs.find(
+            (l) => l.log_type === "Feeding" && l.log_date === todayStr
+          );
+          if (todayFeeding) fedCount++;
         });
+
         setIncubatingCount(count);
+
+        // 🔥 하나라도 밥을 먹었다면 "오늘 피딩 함"으로 간주 (또는 전체가 먹어야 true로 할 수도 있음)
+        // 여기서는 "전체 개체 수와 피딩한 개체 수가 같으면 완료"로 처리하거나,
+        // 단순하게 "하나라도 기록이 있으면 완료"로 할 수 있습니다.
+        // --> UX상 "일괄 피딩 버튼을 눌렀으면 완료"로 치는게 깔끔하므로,
+        //     데이터에 오늘자 피딩 기록이 하나라도 있으면 버튼을 막겠습니다.
+        if (data.length > 0 && fedCount > 0) {
+          setIsFedToday(true);
+        } else {
+          setIsFedToday(false);
+        }
       } catch (error) {
         console.error("Failed to fetch geckos", error);
       } finally {
@@ -58,9 +128,74 @@ export default function Home() {
     };
 
     fetchGeckos();
-  }, [session, status]); // 세션이나 상태가 바뀌면 다시 실행
+  }, [session, status]); // isFedToday가 바뀌어도 다시 실행할 필요 없음 (무한루프 방지)
 
-  // 로딩 중 표시 (NextAuth 로딩 포함)
+  // 설정 변경 시 DB에 저장
+  const toggleDay = async (dayId: number) => {
+    if (!session?.user?.djangoToken) return;
+
+    let newDays = [];
+    if (feedingDays.includes(dayId)) {
+      newDays = feedingDays.filter((d) => d !== dayId);
+    } else {
+      newDays = [...feedingDays, dayId];
+    }
+
+    setFeedingDays(newDays);
+
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/settings/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.user.djangoToken}`,
+        },
+        body: JSON.stringify({ feeding_days: newDays }),
+      });
+    } catch (error) {
+      console.error("설정 저장 실패", error);
+      alert("설정 저장에 실패했습니다.");
+    }
+  };
+
+  const handleBulkFeeding = async () => {
+    if (geckos.length === 0) return;
+    if (!confirm(`총 ${geckos.length}마리에게 피딩 기록을 추가하시겠습니까?`))
+      return;
+
+    const todayStr = new Date().toISOString().split("T")[0];
+
+    try {
+      const promises = geckos.map((gecko) =>
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/logs/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.user.djangoToken}`,
+          },
+          body: JSON.stringify({
+            gecko: gecko.id,
+            log_type: "Feeding",
+            log_date: todayStr,
+            note: "일괄 피딩 완료 ✅",
+          }),
+        })
+      );
+
+      await Promise.all(promises);
+
+      // 🔥 [추가] 피딩 완료 후 상태 즉시 변경
+      setIsFedToday(true);
+      alert("모든 개체에게 피딩 기록이 추가되었습니다! 🦗");
+
+      // (선택) 데이터 새로고침이 필요하다면 여기서 fetchGeckos 로직을 다시 호출하거나 새로고침
+      // router.refresh()
+    } catch (error) {
+      console.error(error);
+      alert("일부 요청이 실패했을 수 있습니다.");
+    }
+  };
+
   if (status === "loading" || loading)
     return <div className="p-8 text-center text-gray-800">로딩 중...</div>;
 
@@ -74,7 +209,6 @@ export default function Home() {
           <LoginButton />
         </div>
 
-        {/* 🔥 비로그인 상태일 때 보여줄 화면 */}
         {!session ? (
           <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100">
             <div className="text-6xl mb-6">👋</div>
@@ -85,14 +219,103 @@ export default function Home() {
               로그인하고 내 도마뱀들의 기록을 관리해보세요.
             </p>
             <div className="inline-block pointer-events-none opacity-50">
-              {/* 버튼을 눌러보게 유도하는 화살표 등 UI 추가 가능 */}
               ⬆️ 우측 상단 로그인 버튼을 눌러주세요
             </div>
           </div>
         ) : (
-          /* 🔥 로그인 상태일 때만 대시보드와 리스트 표시 */
           <>
-            {/* 상단 대시보드 */}
+            {/* 피딩 스케줄 관리 카드 */}
+            <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm mb-8">
+              <div className="flex justify-between items-center mb-3">
+                <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                  🍽️ 피딩 스케줄러
+                </h2>
+                <button
+                  onClick={() => setShowSettings(!showSettings)}
+                  className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded hover:bg-gray-200"
+                >
+                  {showSettings ? "설정 닫기" : "요일 설정"}
+                </button>
+              </div>
+
+              {showSettings && (
+                <div className="flex gap-2 mb-4 justify-center bg-gray-50 p-3 rounded-lg">
+                  {DAYS.map((day) => (
+                    <button
+                      key={day.id}
+                      onClick={() => toggleDay(day.id)}
+                      className={`w-8 h-8 rounded-full text-sm font-bold transition ${
+                        feedingDays.includes(day.id)
+                          ? "bg-green-500 text-white shadow-md"
+                          : "bg-white text-gray-400 border border-gray-200"
+                      }`}
+                    >
+                      {day.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div
+                className={`p-4 rounded-xl text-center transition-colors duration-300 ${
+                  isFedToday
+                    ? "bg-blue-50 border border-blue-100" // 피딩 완료 시 파란색
+                    : isFeedingDay
+                    ? "bg-green-50 border border-green-100" // 피딩 날짜면 초록색
+                    : "bg-gray-50 border border-gray-100" // 평소엔 회색
+                }`}
+              >
+                {isFeedingDay ? (
+                  <div>
+                    {isFedToday ? (
+                      // 🔥 [추가] 피딩 완료 시 보여줄 화면
+                      <div>
+                        <p className="text-blue-700 font-bold text-lg mb-1">
+                          ✅ 오늘의 피딩 완료!
+                        </p>
+                        <p className="text-xs text-blue-500">
+                          수고하셨습니다. 내일도 화이팅! 💪
+                        </p>
+                      </div>
+                    ) : (
+                      // 🔥 [기존] 피딩 안 했을 때 버튼 노출
+                      <div>
+                        <p className="text-green-700 font-bold text-lg mb-3 animate-pulse">
+                          🔔 오늘은 피딩 날짜입니다!
+                        </p>
+                        <button
+                          onClick={handleBulkFeeding}
+                          className="bg-green-600 text-white px-6 py-3 rounded-full font-bold shadow-md hover:bg-green-700 active:scale-95 transition flex items-center gap-2 mx-auto"
+                        >
+                          🦗 전체 피딩 완료 (일괄 기록)
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-gray-500 mb-1">
+                      오늘은 쉬는 날입니다 💤
+                    </p>
+                    {feedingDays.length > 0 ? (
+                      <p className="text-xs text-gray-400">
+                        설정된 요일:{" "}
+                        {feedingDays
+                          .sort()
+                          .map((d) => DAYS[d].label)
+                          .join(", ")}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-orange-400">
+                        피딩 요일을 설정해주세요!
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 나머지 대시보드 및 리스트는 기존 코드 유지 ... */}
             <div className="grid grid-cols-2 gap-4 mb-8">
               <Link
                 href="/incubator"
