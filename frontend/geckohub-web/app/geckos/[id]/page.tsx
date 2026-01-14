@@ -9,16 +9,34 @@ import Link from "next/link";
 import { Gecko } from "@/app/types/gecko";
 import HatchingProgress from "@/app/components/HatchingProgress";
 import IncubationSection from "@/app/components/IncubationSection";
+import { cookies } from "next/headers";
 
 // 데이터 가져오기 (SSR)
 async function getGeckoDetail(id: string): Promise<Gecko> {
   console.log(`Fetching gecko id: ${id}`);
+  const cookieStore = await cookies();
+  // 2. 모든 쿠키를 가져와서 "이름=값; 이름=값" 형태의 문자열로 변환
+  const cookieHeader = cookieStore
+    .getAll()
+    .map((c) => `${c.name}=${c.value}`)
+    .join("; ");
 
-  const res = await fetch(`http://127.0.0.1:8000/api/geckos/${id}/`, {
-    cache: "no-store",
-  });
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/api/geckos/${id}/`,
+    {
+      cache: "no-store",
+      headers: {
+        // 3. 변환된 쿠키 문자열을 헤더에 넣기
+        Cookie: cookieHeader,
+        "Content-Type": "application/json",
+      },
+    }
+  );
 
   if (!res.ok) {
+    if (res.status === 401) {
+      console.error("인증 실패: 401 Unauthorized");
+    }
     throw new Error(`Failed to fetch gecko details (Status: ${res.status})`);
   }
 
