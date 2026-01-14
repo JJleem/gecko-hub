@@ -39,7 +39,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
-    'geckos'
+    'geckos',
+    'users'
 ]
 
 MIDDLEWARE = [
@@ -128,3 +129,20 @@ CORS_ALLOWED_ORIGINS = [
 import os
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# REST Framework 설정 추가
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    )
+}
+
+# JWT 설정 (토큰 유효기간 등)
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),   # 1일간 유효 (개발용으로 길게 잡음)
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),  # 7일간 유효
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': False,
+}

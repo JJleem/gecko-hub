@@ -1,5 +1,5 @@
 from django.db import models
-
+from django.contrib.auth.models import User
 class Gecko(models.Model):
     # 선택지 정의 (성별)
     GENDER_CHOICES = (
@@ -45,7 +45,7 @@ class Gecko(models.Model):
         default='Purchased'
     )
     acquisition_source = models.CharField(max_length=100, blank=True, null=True) # 입양처 (샵/브리더 이름)
-
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='geckos', null=True)
     def __str__(self):
         return self.name  # 관리자 페이지에서 이름으로 표시됨
 

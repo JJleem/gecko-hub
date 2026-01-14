@@ -111,7 +111,7 @@ export default function MorphModal({
           </button>
           <button
             onClick={handleApply}
-            className="flex-[2] py-3 rounded-xl bg-blue-500 text-white font-bold hover:bg-blue-600 transition shadow-md"
+            className="flex-2 py-3 rounded-xl bg-blue-500 text-white font-bold hover:bg-blue-600 transition shadow-md"
           >
             적용하기 ({selected.length})
           </button>
