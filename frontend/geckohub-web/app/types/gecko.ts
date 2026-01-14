@@ -5,6 +5,7 @@ export interface ParentGecko {
   name: string;
   profile_image: string | null;
   gender?: string;
+  morph?: string;
 }
 
 export interface CareLog {

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { Gecko } from "@/app/types/gecko";
-import MorphModal from "@/app/components/MorphModal"; // 모달 컴포넌트 임포트 필수
+import MorphModal from "@/app/components/MorphModal";
 import { useSession } from "next-auth/react";
 
 export default function NewGeckoPage() {
@@ -14,6 +14,7 @@ export default function NewGeckoPage() {
   const [preview, setPreview] = useState<string | null>(null);
   const [isMorphModalOpen, setIsMorphModalOpen] = useState(false);
   const { data: session } = useSession();
+
   // 🔥 부모 직접 입력 모드 상태
   const [isManualSire, setIsManualSire] = useState(false);
   const [isManualDam, setIsManualDam] = useState(false);
@@ -27,13 +28,14 @@ export default function NewGeckoPage() {
     morph: "",
     gender: "Unknown",
     birth_date: "",
+    weight: "", // 🔥 [추가] 무게 상태
     description: "",
 
     // 부모 정보
-    sire: "", // 선택된 아빠 ID
-    sire_name: "", // 직접 입력한 아빠 이름
-    dam: "", // 선택된 엄마 ID
-    dam_name: "", // 직접 입력한 엄마 이름
+    sire: "",
+    sire_name: "",
+    dam: "",
+    dam_name: "",
 
     // 추가 정보
     is_ovulating: false,
@@ -53,9 +55,7 @@ export default function NewGeckoPage() {
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/geckos/`,
           {
-            // credentials: "include",  <-- 이건 이제 필요 없거나 보조용입니다.
             headers: {
-              // 🔥 [핵심] 헤더에 Bearer 토큰을 직접 붙여줍니다.
               Authorization: `Bearer ${session.user.djangoToken}`,
               "Content-Type": "application/json",
             },
@@ -64,8 +64,6 @@ export default function NewGeckoPage() {
 
         if (res.ok) {
           const data: Gecko[] = await res.json();
-          console.log(data);
-
           setMales(data.filter((g) => g.gender === "Male"));
           setFemales(data.filter((g) => g.gender === "Female"));
         }
@@ -74,13 +72,12 @@ export default function NewGeckoPage() {
       }
     };
     fetchCandidates();
-  }, []);
+  }, [session]);
 
   const handleChange = (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    // 성별 변경 시 배란/발정 상태 초기화
     if (name === "gender") {
       setFormData((prev) => ({ ...prev, [name]: value, is_ovulating: false }));
     } else {
@@ -113,23 +110,21 @@ export default function NewGeckoPage() {
       data.append("is_ovulating", formData.is_ovulating ? "true" : "false");
 
       if (formData.birth_date) data.append("birth_date", formData.birth_date);
+
+      // 🔥 [추가] 무게 데이터 전송 (값이 있을 때만)
+      if (formData.weight) data.append("weight", formData.weight);
+
       data.append("description", formData.description);
 
-      // 🔥 [수정 1] 부모 정보 처리 로직 개선
-      // 값이 없거나 빈 문자열("")이면 FormData에 추가하지 않아야 백엔드에서 null로 처리됨
-
-      // 아빠 (Sire)
+      // 부모 정보 처리
       if (isManualSire) {
-        // 직접 입력 모드: ID는 보내지 않고 이름만 보냄
         data.append("sire_name", formData.sire_name);
       } else {
-        // 선택 모드: ID가 "선택 안 함"("")이 아닐 때만 보냄
         if (formData.sire) {
           data.append("sire", formData.sire);
         }
       }
 
-      // 엄마 (Dam)
       if (isManualDam) {
         data.append("dam_name", formData.dam_name);
       } else {
@@ -154,15 +149,12 @@ export default function NewGeckoPage() {
         {
           method: "POST",
           headers: {
-            // 🔥 [핵심] 등록할 때도 헤더에 토큰 추가!
-            // (FormData 전송시 Content-Type은 브라우저가 알아서 하므로 생략하거나 Authorization만 넣음)
             Authorization: `Bearer ${session.user.djangoToken}`,
           },
           body: data,
         }
       );
 
-      // 🔥 [수정 3] 에러가 났을 때 이유를 확인하기 위한 로그 추가
       if (!res.ok) {
         const errorMsg = await res.text();
         console.error("서버 에러 응답:", errorMsg);
@@ -182,7 +174,6 @@ export default function NewGeckoPage() {
 
   return (
     <main className="min-h-screen p-8 bg-gray-50 text-black">
-      {/* 모프 선택 모달 */}
       <MorphModal
         isOpen={isMorphModalOpen}
         onClose={() => setIsMorphModalOpen(false)}
@@ -247,7 +238,7 @@ export default function NewGeckoPage() {
               </label>
               <div
                 onClick={() => setIsMorphModalOpen(true)}
-                className="mt-1 flex w-full items-center rounded-md border border-gray-300 px-3 py-2 shadow-sm cursor-pointer hover:border-blue-500 hover:ring-1 hover:ring-blue-500 bg-white min-h-10.5"
+                className="mt-1 flex w-full items-center rounded-md border border-gray-300 px-3 py-2 shadow-sm cursor-pointer hover:border-blue-500 hover:ring-1 hover:ring-blue-500 bg-white min-h-[42px]"
               >
                 {formData.morph ? (
                   <div className="flex flex-wrap gap-1">
@@ -283,6 +274,7 @@ export default function NewGeckoPage() {
                 <option value="Female">암컷</option>
               </select>
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700">
                 해칭일
@@ -292,6 +284,22 @@ export default function NewGeckoPage() {
                 name="birth_date"
                 value={formData.birth_date}
                 onChange={handleChange}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none"
+              />
+            </div>
+
+            {/* 🔥 [추가] 무게 입력 필드 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                무게 (g)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                name="weight"
+                value={formData.weight}
+                onChange={handleChange}
+                placeholder="0.0"
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none"
               />
             </div>
@@ -427,7 +435,7 @@ export default function NewGeckoPage() {
             </div>
           )}
 
-          {/* 부모 선택 영역 (토글 기능 포함) */}
+          {/* 부모 선택 영역 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
             {/* 아빠 (Sire) */}
             <div>

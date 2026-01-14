@@ -6,7 +6,7 @@ from operator import attrgetter
 class ParentGeckoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Gecko
-        fields = ['id', 'name', 'profile_image', 'gender'] 
+        fields = ['id', 'name', 'profile_image', 'gender','morph'] 
 
 # 2. 사육 기록 시리얼라이저
 class CareLogSerializer(serializers.ModelSerializer):

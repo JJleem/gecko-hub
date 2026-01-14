@@ -174,7 +174,9 @@ export default async function GeckoDetail({ params }: Props) {
 
                 {/* 혈통 정보 (Lineage) */}
                 <div className="pt-4 mt-4">
-                  {/* ... */}
+                  <h3 className="text-sm font-bold text-gray-900 mb-3 border-l-4 border-blue-500 pl-2">
+                    🧬 혈통 정보 (Lineage)
+                  </h3>
                   <div className="grid grid-cols-2 gap-4">
                     {/* 아빠 (Sire) */}
                     <div className="flex flex-col">
@@ -182,16 +184,40 @@ export default async function GeckoDetail({ params }: Props) {
                         부 (Sire)
                       </span>
 
-                      {/* 1. 내부 개체 ID가 있을 때 (링크) */}
+                      {/* 1. 내부 개체 ID가 있을 때 (클릭 가능한 카드) */}
                       {gecko.sire_detail ? (
                         <Link
                           href={`/geckos/${gecko.sire_detail.id}`}
-                          className="..."
+                          className="flex items-center p-2 bg-blue-50 rounded-lg border border-blue-100 hover:bg-blue-100 transition group"
                         >
-                          {/* ... 기존 이미지 및 이름 표시 코드 ... */}
+                          {/* 이미지 영역 */}
+                          <div className="relative w-10 h-10 bg-gray-200 rounded-full overflow-hidden border border-blue-200 mr-3 group-hover:scale-105 transition-transform">
+                            {gecko.sire_detail.profile_image ? (
+                              <Image
+                                src={gecko.sire_detail.profile_image}
+                                alt={gecko.sire_detail.name}
+                                fill
+                                className="object-cover"
+                                unoptimized
+                              />
+                            ) : (
+                              <div className="flex items-center justify-center h-full text-[10px] text-gray-400 font-bold">
+                                NO IMG
+                              </div>
+                            )}
+                          </div>
+                          {/* 텍스트 영역 */}
+                          <div className="overflow-hidden">
+                            <p className="text-sm font-bold text-gray-800 truncate group-hover:text-blue-700">
+                              {gecko.sire_detail.name}
+                            </p>
+                            <p className="text-[10px] text-gray-500 truncate">
+                              {gecko.sire_detail.morph || "모프 정보 없음"}
+                            </p>
+                          </div>
                         </Link>
                       ) : gecko.sire_name ? (
-                        /* 2. 🔥 [추가] 직접 입력한 이름이 있을 때 (텍스트) */
+                        /* 2. 직접 입력한 이름이 있을 때 (단순 텍스트) */
                         <div className="flex items-center p-2 bg-gray-50 rounded-lg border border-gray-200">
                           <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center mr-3 text-lg">
                             🦕
@@ -207,7 +233,7 @@ export default async function GeckoDetail({ params }: Props) {
                         </div>
                       ) : (
                         /* 3. 아무것도 없을 때 */
-                        <div className="p-2 bg-gray-50 rounded-lg text-sm text-gray-400 border border-gray-100">
+                        <div className="p-2 bg-gray-50 rounded-lg text-sm text-gray-400 border border-gray-100 flex items-center justify-center h-[58px]">
                           정보 없음
                         </div>
                       )}
@@ -219,16 +245,40 @@ export default async function GeckoDetail({ params }: Props) {
                         모 (Dam)
                       </span>
 
-                      {/* 1. 내부 개체 ID가 있을 때 */}
+                      {/* 1. 내부 개체 ID가 있을 때 (클릭 가능한 카드) */}
                       {gecko.dam_detail ? (
                         <Link
                           href={`/geckos/${gecko.dam_detail.id}`}
-                          className="..."
+                          className="flex items-center p-2 bg-pink-50 rounded-lg border border-pink-100 hover:bg-pink-100 transition group"
                         >
-                          {/* ... 기존 코드 ... */}
+                          {/* 이미지 영역 */}
+                          <div className="relative w-10 h-10 bg-gray-200 rounded-full overflow-hidden border border-pink-200 mr-3 group-hover:scale-105 transition-transform">
+                            {gecko.dam_detail.profile_image ? (
+                              <Image
+                                src={gecko.dam_detail.profile_image}
+                                alt={gecko.dam_detail.name}
+                                fill
+                                className="object-cover"
+                                unoptimized
+                              />
+                            ) : (
+                              <div className="flex items-center justify-center h-full text-[10px] text-gray-400 font-bold">
+                                NO IMG
+                              </div>
+                            )}
+                          </div>
+                          {/* 텍스트 영역 */}
+                          <div className="overflow-hidden">
+                            <p className="text-sm font-bold text-gray-800 truncate group-hover:text-pink-700">
+                              {gecko.dam_detail.name}
+                            </p>
+                            <p className="text-[10px] text-gray-500 truncate">
+                              {gecko.dam_detail.morph || "모프 정보 없음"}
+                            </p>
+                          </div>
                         </Link>
                       ) : gecko.dam_name ? (
-                        /* 2. 🔥 [추가] 직접 입력한 이름이 있을 때 */
+                        /* 2. 직접 입력한 이름이 있을 때 (단순 텍스트) */
                         <div className="flex items-center p-2 bg-gray-50 rounded-lg border border-gray-200">
                           <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center mr-3 text-lg">
                             🦎
@@ -243,8 +293,8 @@ export default async function GeckoDetail({ params }: Props) {
                           </div>
                         </div>
                       ) : (
-                        /* 3. 정보 없음 */
-                        <div className="p-2 bg-gray-50 rounded-lg text-sm text-gray-400 border border-gray-100">
+                        /* 3. 아무것도 없을 때 */
+                        <div className="p-2 bg-gray-50 rounded-lg text-sm text-gray-400 border border-gray-100 flex items-center justify-center h-[58px]">
                           정보 없음
                         </div>
                       )}
