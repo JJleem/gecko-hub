@@ -3,6 +3,7 @@
 import { useState, useEffect, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Gecko } from "../types/gecko";
+import { useSession } from "next-auth/react";
 
 export default function LogForm({
   geckoId,
@@ -12,6 +13,7 @@ export default function LogForm({
   currentGender: string;
 }) {
   const router = useRouter();
+  const { data: session } = useSession();
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [partners, setPartners] = useState<Gecko[]>([]);
@@ -34,8 +36,17 @@ export default function LogForm({
 
   // 메이팅 선택 시 파트너 목록 로딩
   useEffect(() => {
-    if (formData.log_type === "Mating" && partners.length === 0) {
-      fetch("http://127.0.0.1:8000/api/geckos/")
+    if (
+      formData.log_type === "Mating" &&
+      partners.length === 0 &&
+      session?.user?.djangoToken
+    ) {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/geckos/`, {
+        headers: {
+          Authorization: `Bearer ${session.user.djangoToken}`,
+          "Content-Type": "application/json",
+        },
+      })
         .then((res) => res.json())
         .then((data: Gecko[]) => {
           const candidates = data.filter(
@@ -44,9 +55,16 @@ export default function LogForm({
               (currentGender === "Unknown" || g.gender !== currentGender)
           );
           setPartners(candidates);
-        });
+        })
+        .catch((err) => console.error("파트너 로딩 실패:", err));
     }
-  }, [formData.log_type, geckoId, currentGender, partners.length]);
+  }, [
+    formData.log_type,
+    geckoId,
+    currentGender,
+    partners.length,
+    session, // 의존성 추가
+  ]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -77,11 +95,12 @@ export default function LogForm({
         mating_success:
           formData.log_type === "Mating" ? formData.mating_success : false,
       };
-
-      const res = await fetch("http://127.0.0.1:8000/api/logs/", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/logs/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+
+          Authorization: `Bearer ${session?.user.djangoToken}`,
         },
         body: JSON.stringify(payload),
       });

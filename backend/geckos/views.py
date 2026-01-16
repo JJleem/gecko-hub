@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly, AllowAny
 from .models import UserSettings
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
 # 게코 목록 조회, 생성, 수정, 삭제(CRUD)를 한방에 처리
 class GeckoViewSet(viewsets.ModelViewSet):
     queryset = Gecko.objects.all().order_by('-created_at') # 최신순 정렬

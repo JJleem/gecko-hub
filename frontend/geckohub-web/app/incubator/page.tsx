@@ -578,6 +578,7 @@ export default function IncubatorPage() {
                   <label className="block text-xs font-bold text-gray-600 mb-1">
                     산란일
                   </label>
+                  vvvvvvvv
                   <input
                     type="date"
                     value={formData.layDate}

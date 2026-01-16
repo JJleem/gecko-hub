@@ -63,7 +63,7 @@ export default function HatchingProgress({
       <div className="relative w-full h-4 bg-gray-100 rounded-full border border-gray-50 mt-4 mb-2">
         {/* 진행 바 */}
         <div
-          className="h-full bg-gradient-to-r from-yellow-300 via-orange-400 to-orange-500 rounded-full transition-all duration-1000 ease-out"
+          className="h-full bg-linear-to-r from-yellow-300 via-orange-400 to-orange-500 rounded-full transition-all duration-1000 ease-out"
           style={{ width: `${progress}%` }}
         />
 
