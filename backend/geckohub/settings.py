@@ -36,7 +36,9 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'cloudinary_storage',
     'django.contrib.staticfiles',
+    'cloudinary',
     'rest_framework',
     'corsheaders',
     'geckos',
@@ -139,8 +141,17 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 # 이미지 파일 저장 경로 설정
 import os
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME'),
+    'API_KEY': os.environ.get('CLOUDINARY_API_KEY'),
+    'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),
+}
+
+# 미디어 파일(이미지 업로드)은 Cloudinary에 저장
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+
+# 미디어 URL 설정
+MEDIA_URL = '/media/'  # 이건 형식상 둡니다.
 
 # REST Framework 설정 추가
 REST_FRAMEWORK = {
