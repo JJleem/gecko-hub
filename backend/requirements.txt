@@ -9,7 +9,6 @@ annotated-types==0.7.0
 anyio==4.11.0
 asgiref==3.8.1
 attrs==25.3.0
-av==14.4.0
 beautifulsoup4==4.13.4
 blinker==1.9.0
 boto3==1.37.16
@@ -26,7 +25,6 @@ djangorestframework==3.15.2
 djangorestframework-simplejwt==5.3.1
 dnspython==2.8.0
 fastapi==0.119.0
-ffmpeg==1.4
 Flask==3.1.1
 frozenlist==1.7.0
 gevent==25.9.1
@@ -43,8 +41,6 @@ macholib==1.16.3
 MarkupSafe==3.0.2
 minimalmodbus==2.1.1
 multidict==6.6.4
-numpy==2.2.6
-opencv-python==4.12.0.88
 packaging==24.2
 paho-mqtt==2.1.0
 pefile==2023.2.7
