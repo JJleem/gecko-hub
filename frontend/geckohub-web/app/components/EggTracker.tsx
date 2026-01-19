@@ -87,7 +87,7 @@ export default function EggTracker({ logs }: { logs: CareLog[] }) {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-gray-600 truncate max-w-[200px]">
+                  <td className="px-4 py-3 text-gray-600 truncate max-w-50">
                     {log.egg_condition && (
                       <span className="mr-2 text-gray-800">
                         [{log.egg_condition}]

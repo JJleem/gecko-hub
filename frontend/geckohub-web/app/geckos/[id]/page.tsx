@@ -7,7 +7,7 @@ import WeightChart from "@/app/components/WeightChart";
 import Image from "next/image";
 import Link from "next/link";
 import { Gecko } from "@/app/types/gecko";
-import HatchingProgress from "@/app/components/HatchingProgress";
+
 import IncubationSection from "@/app/components/IncubationSection";
 import { cookies } from "next/headers";
 

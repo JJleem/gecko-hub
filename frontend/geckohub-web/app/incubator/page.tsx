@@ -436,7 +436,7 @@ export default function IncubatorPage() {
                     {egg.incubation_temp}°C
                   </span>
                   <span className="text-gray-500">해칭 예정</span>
-                  <span className="text-right font-medium text-blue-600 font-bold">
+                  <span className="text-right font-medium text-blue-600 ">
                     {egg.expected_hatching_date}
                   </span>
                   {egg.note && (

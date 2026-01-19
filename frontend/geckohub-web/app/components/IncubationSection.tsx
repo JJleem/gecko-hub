@@ -55,9 +55,7 @@ export default function IncubationSection({ activeEggs }: Props) {
 
             <div
               className={`space-y-3 overflow-hidden transition-all duration-500 ease-in-out ${
-                isExpanded
-                  ? "max-h-[2000px] mt-3 opacity-100"
-                  : "max-h-0 opacity-0"
+                isExpanded ? "max-h-500 mt-3 opacity-100" : "max-h-0 opacity-0"
               }`}
             >
               {otherEggs.map((egg) => (

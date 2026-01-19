@@ -1,0 +1,14 @@
+{
+  "builds": [
+    {
+      "src": "geckohub/wsgi.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "geckohub/wsgi.py"
+    }
+  ]
+}
