@@ -77,14 +77,16 @@ WSGI_APPLICATION = 'geckohub.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+
+
 DATABASES = {
     'default': dj_database_url.config(
-        # 로컬에서 개발할 땐 sqlite3 쓰고, 배포(Vercel)하면 Supabase 쓰는 마법의 코드
-        default='sqlite:///db.sqlite3', 
+        # 1. 배포(Vercel) 환경: Vercel 환경변수(DATABASE_URL)를 자동으로 가져다 씀
+        # 2. 로컬(내 컴퓨터) 환경: 환경변수가 없으면 아래 default(SQLite)를 사용
+        default=f'sqlite:///{BASE_DIR / "db.sqlite3"}',
         conn_max_age=600
     )
 }
-
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 
