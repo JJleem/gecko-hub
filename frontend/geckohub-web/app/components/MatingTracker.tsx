@@ -15,14 +15,16 @@ export default function MatingTracker({
   const matingLogs = logs
     .filter((log) => log.log_type === "Mating")
     .sort(
-      (a, b) => new Date(b.log_date).getTime() - new Date(a.log_date).getTime()
+      (a, b) => new Date(b.log_date).getTime() - new Date(a.log_date).getTime(),
     );
 
   // 🛠 [핵심 함수] 이미지 주소 변환 (엑박 방지 + 타입 에러 방지)
   // path가 있으면 http://... 를 붙여서 반환하고, 없으면 빈 문자열("") 반환
   const getFullImageUrl = (path: string | null): string => {
     if (!path) return "";
-    return path.startsWith("http") ? path : `http://127.0.0.1:8000${path}`;
+    return path.startsWith("http")
+      ? path
+      : `https://gecko-fpge6jy1d-jjleems-projects.vercel.app${path}`;
   };
 
   return (

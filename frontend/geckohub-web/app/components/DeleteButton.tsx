@@ -8,15 +8,18 @@ export default function DeleteButton({ id }: { id: number }) {
   const handleDelete = async () => {
     if (
       !confirm(
-        "정말 이 개체 정보를 삭제하시겠습니까?\n(이 작업은 되돌릴 수 없습니다.)"
+        "정말 이 개체 정보를 삭제하시겠습니까?\n(이 작업은 되돌릴 수 없습니다.)",
       )
     )
       return;
 
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/geckos/${id}/`, {
-        method: "DELETE",
-      });
+      const res = await fetch(
+        `https://gecko-fpge6jy1d-jjleems-projects.vercel.app/api/geckos/${id}/`,
+        {
+          method: "DELETE",
+        },
+      );
 
       if (!res.ok) throw new Error("삭제 실패");
 

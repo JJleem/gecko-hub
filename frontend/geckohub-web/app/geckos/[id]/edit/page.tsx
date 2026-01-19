@@ -52,12 +52,14 @@ export default function EditGeckoPage({
       try {
         // 1. 내 정보 가져오기
         const myRes = await fetch(
-          `http://127.0.0.1:8000/api/geckos/${resolvedParams.id}/`
+          `https://gecko-fpge6jy1d-jjleems-projects.vercel.app/api/geckos/${resolvedParams.id}/`,
         );
         const myData = await myRes.json();
 
         // 2. 전체 리스트 가져오기 (부모 후보군용)
-        const listRes = await fetch("http://127.0.0.1:8000/api/geckos/");
+        const listRes = await fetch(
+          "https://gecko-fpge6jy1d-jjleems-projects.vercel.app/api/geckos/",
+        );
         const listData: Gecko[] = await listRes.json();
 
         // 🔥 [중요] 부모 정보 로딩 및 모드 설정 로직
@@ -105,7 +107,7 @@ export default function EditGeckoPage({
         if (myData.profile_image) setPreview(myData.profile_image);
 
         const others = listData.filter(
-          (g) => g.id !== Number(resolvedParams.id)
+          (g) => g.id !== Number(resolvedParams.id),
         );
         setMales(others.filter((g) => g.gender === "Male"));
         setFemales(others.filter((g) => g.gender === "Female"));
@@ -119,7 +121,7 @@ export default function EditGeckoPage({
   }, [params, router]);
 
   const handleChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
   ) => {
     const { name, value } = e.target;
     if (name === "gender") {
@@ -143,7 +145,7 @@ export default function EditGeckoPage({
     if (!formData.name) return alert("이름을 입력해주세요.");
 
     const submitBtn = document.getElementById(
-      "submit-btn"
+      "submit-btn",
     ) as HTMLButtonElement;
     if (submitBtn) submitBtn.disabled = true;
     if (submitBtn) submitBtn.innerText = "수정 중...";
@@ -189,11 +191,11 @@ export default function EditGeckoPage({
       const resolvedParams = await params;
 
       const res = await fetch(
-        `http://127.0.0.1:8000/api/geckos/${resolvedParams.id}/`,
+        `https://gecko-fpge6jy1d-jjleems-projects.vercel.app/api/geckos/${resolvedParams.id}/`,
         {
           method: "PATCH",
           body: data,
-        }
+        },
       );
 
       if (!res.ok) throw new Error("수정 실패");

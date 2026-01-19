@@ -22,16 +22,19 @@ const handler = NextAuth({
 
         try {
           // 1. Django 백엔드로 토큰과 정보를 보냅니다.
-          const res = await fetch("http://127.0.0.1:8000/api/auth/social/", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              provider: account.provider, // google 또는 kakao
-              access_token: account.access_token, // 소셜 토큰
-              email: user.email,
-              name: user.name,
-            }),
-          });
+          const res = await fetch(
+            "https://gecko-fpge6jy1d-jjleems-projects.vercel.app/api/auth/social/",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                provider: account.provider, // google 또는 kakao
+                access_token: account.access_token, // 소셜 토큰
+                email: user.email,
+                name: user.name,
+              }),
+            },
+          );
 
           const data = await res.json();
 
