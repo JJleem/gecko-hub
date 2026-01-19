@@ -126,12 +126,14 @@ STATIC_URL = 'static/'
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
+    "https://gecko-hub-web.vercel.app",
     "http://localhost:3000",
     "http://127.0.0.1:3000", 
 ]
 
 # 🔥 (추가 팁) 나중에 POST 요청(등록)할 때 에러 안 나려면 이것도 필요합니다.
 CSRF_TRUSTED_ORIGINS = [
+    "https://gecko-hub-web.vercel.app",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
