@@ -16,6 +16,10 @@ const nextConfig: NextConfig = {
         port: "8000",
         pathname: "/media/**",
       },
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com", // Cloudinary 주소 허용
+      },
     ],
   },
 };
