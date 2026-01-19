@@ -52,14 +52,12 @@ export default function EditGeckoPage({
       try {
         // 1. 내 정보 가져오기
         const myRes = await fetch(
-          `https://gecko-fpge6jy1d-jjleems-projects.vercel.app/api/geckos/${resolvedParams.id}/`,
+          `https://gecko-hub.vercel.app/api/geckos/${resolvedParams.id}/`,
         );
         const myData = await myRes.json();
 
         // 2. 전체 리스트 가져오기 (부모 후보군용)
-        const listRes = await fetch(
-          "https://gecko-fpge6jy1d-jjleems-projects.vercel.app/api/geckos/",
-        );
+        const listRes = await fetch("https://gecko-hub.vercel.app/api/geckos/");
         const listData: Gecko[] = await listRes.json();
 
         // 🔥 [중요] 부모 정보 로딩 및 모드 설정 로직
@@ -191,7 +189,7 @@ export default function EditGeckoPage({
       const resolvedParams = await params;
 
       const res = await fetch(
-        `https://gecko-fpge6jy1d-jjleems-projects.vercel.app/api/geckos/${resolvedParams.id}/`,
+        `https://gecko-hub.vercel.app/api/geckos/${resolvedParams.id}/`,
         {
           method: "PATCH",
           body: data,

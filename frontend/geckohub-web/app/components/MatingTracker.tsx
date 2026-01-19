@@ -24,7 +24,7 @@ export default function MatingTracker({
     if (!path) return "";
     return path.startsWith("http")
       ? path
-      : `https://gecko-fpge6jy1d-jjleems-projects.vercel.app${path}`;
+      : `https://gecko-hub.vercel.app${path}`;
   };
 
   return (

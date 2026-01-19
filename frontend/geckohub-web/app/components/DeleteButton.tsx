@@ -15,7 +15,7 @@ export default function DeleteButton({ id }: { id: number }) {
 
     try {
       const res = await fetch(
-        `https://gecko-fpge6jy1d-jjleems-projects.vercel.app/api/geckos/${id}/`,
+        `https://gecko-hub.vercel.app/api/geckos/${id}/`,
         {
           method: "DELETE",
         },
