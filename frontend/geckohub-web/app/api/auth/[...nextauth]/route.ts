@@ -23,7 +23,7 @@ const handler = NextAuth({
         try {
           // 1. Django 백엔드로 토큰과 정보를 보냅니다.
           const res = await fetch(
-            "https://gecko-hub.vercel.app/api/auth/social/",
+            `${process.env.NEXT_PUBLIC_API_URL}/api/auth/social/`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { MORPH_LIST } from "../constants/morphs";
+import { Button } from "./ui/button"; // 경로가 다를 경우 "@/components/ui/button" 등으로 수정
+import { X, Dna, RotateCcw, Check } from "lucide-react";
 
 interface MorphModalProps {
   isOpen: boolean;
@@ -28,11 +30,8 @@ export default function MorphModal({
             .filter(Boolean)
         : [];
 
-      // 현재 상태와 다를 때만 업데이트 (무한 루프 방지)
       setSelected(items);
     }
-    // initialSelected가 바뀌더라도 모달이 열려있는 동안에는
-    // 사용자가 선택한 값이 유지되어야 하므로 dependency에서 뺐습니다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
@@ -51,35 +50,47 @@ export default function MorphModal({
   };
 
   const handleApply = () => {
-    // 배열을 "릴리화이트, 아잔틱" 형태의 문자열로 합쳐서 부모에게 전달
     onApply(selected.join(", "));
     onClose();
   };
 
+  // 닫혀있으면 렌더링 안 함
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl overflow-hidden max-h-[90vh] flex flex-col">
-        {/* 헤더 */}
-        <div className="p-4 border-b flex justify-between items-center">
-          <div>
-            <h2 className="text-lg font-bold">모프 선택</h2>
-            <p className="text-xs text-gray-500">
-              최대 6개까지 선택할 수 있어요
-            </p>
+    // 배경 오버레이 (블러 & 페이드 인 효과)
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      {/* 모달 박스 (팝업 애니메이션) */}
+      <div className="bg-card text-card-foreground w-full max-w-lg rounded-2xl border border-border shadow-2xl overflow-hidden max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200">
+        {/* 헤더 영역 */}
+        <div className="px-6 py-4 border-b border-border/50 bg-muted/20 flex justify-between items-center">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-primary/10 rounded-full">
+              <Dna className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold tracking-tight">모프 선택</h2>
+              <p className="text-xs text-muted-foreground font-medium">
+                최대 6개까지 선택할 수 있어요{" "}
+                <span className="text-primary font-bold">
+                  ({selected.length}/6)
+                </span>
+              </p>
+            </div>
           </div>
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl"
+            className="rounded-full w-8 h-8 text-muted-foreground hover:bg-muted"
           >
-            &times;
-          </button>
+            <X className="w-4 h-4" />
+          </Button>
         </div>
 
-        {/* 모프 리스트 (스크롤 영역) */}
-        <div className="p-4 overflow-y-auto flex-1">
-          <div className="flex flex-wrap gap-2">
+        {/* 모프 리스트 영역 (스크롤) */}
+        <div className="p-6 overflow-y-auto flex-1">
+          <div className="flex flex-wrap gap-2.5">
             {MORPH_LIST.map((morph) => {
               const isSelected = selected.includes(morph);
               return (
@@ -87,11 +98,12 @@ export default function MorphModal({
                   key={morph}
                   type="button"
                   onClick={() => toggleMorph(morph)}
-                  className={`px-3 py-1.5 rounded-full text-sm border transition-all
+                  // shadcn Badge 느낌의 커스텀 스타일 (선택/해제 시 애니메이션)
+                  className={`inline-flex items-center justify-center rounded-full border px-4 py-1.5 text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 hover:scale-105 active:scale-95
                     ${
                       isSelected
-                        ? "bg-blue-500 text-white border-blue-500 font-bold shadow-sm"
-                        : "bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                        ? "border-transparent bg-primary text-primary-foreground shadow-md hover:bg-primary/90"
+                        : "border-border bg-background text-foreground hover:bg-muted"
                     }`}
                 >
                   {morph}
@@ -101,20 +113,23 @@ export default function MorphModal({
           </div>
         </div>
 
-        {/* 푸터 (버튼) */}
-        <div className="p-4 border-t bg-gray-50 flex space-x-2">
-          <button
+        {/* 푸터 영역 (버튼) */}
+        <div className="px-6 py-4 border-t border-border/50 bg-muted/30 flex gap-3 items-center justify-between">
+          <Button
+            variant="outline"
             onClick={() => setSelected([])}
-            className="flex-1 py-3 rounded-xl bg-blue-50 text-blue-600 font-bold hover:bg-blue-100 transition"
+            className="gap-2 text-muted-foreground hover:text-foreground"
           >
+            <RotateCcw className="w-4 h-4" />
             초기화
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleApply}
-            className="flex-2 py-3 rounded-xl bg-blue-500 text-white font-bold hover:bg-blue-600 transition shadow-md"
+            className="flex-1 gap-2 font-bold shadow-sm"
           >
-            적용하기 ({selected.length})
-          </button>
+            <Check className="w-5 h-5" />
+            적용하기
+          </Button>
         </div>
       </div>
     </div>

@@ -1,21 +1,47 @@
 import DeleteButton from "@/app/components/DeleteButton";
 import EggTracker from "@/app/components/EggTracker";
-import MatingTracker from "@/app/components/MatingTracker"; // [추가]
+import MatingTracker from "@/app/components/MatingTracker";
 import LogForm from "@/app/components/LogForm";
 import WeightChart from "@/app/components/WeightChart";
+import IncubationSection from "@/app/components/IncubationSection";
 
 import Image from "next/image";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { Gecko } from "@/app/types/gecko";
 
-import IncubationSection from "@/app/components/IncubationSection";
-import { cookies } from "next/headers";
+// shadcn & 아이콘
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../../components/ui/card";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../../components/ui/table";
+import {
+  ArrowLeft,
+  CalendarDays,
+  Dna,
+  Edit,
+  Activity,
+  FileText,
+  Scale,
+  ChevronRight,
+  Info,
+} from "lucide-react";
 
 // 데이터 가져오기 (SSR)
 async function getGeckoDetail(id: string): Promise<Gecko> {
-  console.log(`Fetching gecko id: ${id}`);
   const cookieStore = await cookies();
-  // 2. 모든 쿠키를 가져와서 "이름=값; 이름=값" 형태의 문자열로 변환
   const cookieHeader = cookieStore
     .getAll()
     .map((c) => `${c.name}=${c.value}`)
@@ -26,17 +52,13 @@ async function getGeckoDetail(id: string): Promise<Gecko> {
     {
       cache: "no-store",
       headers: {
-        // 3. 변환된 쿠키 문자열을 헤더에 넣기
         Cookie: cookieHeader,
         "Content-Type": "application/json",
       },
-    }
+    },
   );
 
   if (!res.ok) {
-    if (res.status === 401) {
-      console.error("인증 실패: 401 Unauthorized");
-    }
     throw new Error(`Failed to fetch gecko details (Status: ${res.status})`);
   }
 
@@ -50,416 +72,462 @@ type Props = {
 export default async function GeckoDetail({ params }: Props) {
   const { id } = await params;
   const gecko = await getGeckoDetail(id);
+
+  // 진행 중인 인큐베이팅 알 필터링
   const activeEggs = gecko.logs
     .filter(
       (l) =>
         l.log_type === "Laying" &&
         l.expected_hatching_date &&
-        // D-Day가 지났더라도 관리자가 완료 처리하기 전까진 보여주고 싶다면 아래 조건 조절
         new Date(l.expected_hatching_date) >=
-          new Date(new Date().setHours(0, 0, 0, 0))
+          new Date(new Date().setHours(0, 0, 0, 0)),
     )
-    // 예정일이 가까운 순서대로 정렬
     .sort(
       (a, b) =>
         new Date(a.expected_hatching_date!).getTime() -
-        new Date(b.expected_hatching_date!).getTime()
+        new Date(b.expected_hatching_date!).getTime(),
     );
+
   return (
-    <main className="min-h-screen p-8 bg-gray-50 text-black">
-      {/* 상단 네비게이션 */}
-      <div className="flex justify-between items-center mb-6">
-        <Link href="/" className="text-blue-500 hover:underline">
-          &larr; 뒤로 가기
-        </Link>
-
-        <div className="flex items-center space-x-2">
-          <Link
-            href={`/geckos/${gecko.id}/edit`}
-            className="px-3 py-1 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition"
+    <main className="min-h-screen p-4 md:p-8 lg:p-10 bg-muted/10 text-foreground transition-colors duration-300 pb-24">
+      <div className="max-w-5xl mx-auto space-y-8">
+        {/* 상단 네비게이션 & 액션 버튼 */}
+        <div className="flex justify-between items-center">
+          <Button
+            variant="ghost"
+            asChild
+            className="p-0 text-muted-foreground hover:text-primary hover:bg-transparent"
           >
-            수정
-          </Link>
-          <DeleteButton id={gecko.id} />
-        </div>
-      </div>
+            <Link
+              href="/"
+              className="flex items-center gap-1.5 text-sm font-semibold"
+            >
+              <ArrowLeft className="w-4 h-4" /> 목록으로 돌아가기
+            </Link>
+          </Button>
 
-      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
-        <IncubationSection activeEggs={activeEggs} />
-        {/* ========================================== */}
-        {/* 1. 프로필 영역 */}
-        {/* ========================================== */}
-        <div className="md:flex-col px-4 ">
-          <div className="flex items-center justify-center">
-            <div className="md:w-1/2 relative h-80 bg-gray-200">
-              {gecko.profile_image ? (
-                <Image
-                  src={gecko.profile_image}
-                  alt={gecko.name}
-                  fill
-                  className="object-cover"
-                  unoptimized
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full text-gray-400">
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className="border-primary/20 text-primary hover:bg-primary hover:text-primary-foreground shadow-sm transition-all"
+            >
+              <Link
+                href={`/geckos/${gecko.id}/edit`}
+                className="flex items-center gap-1.5 font-bold"
+              >
+                <Edit className="w-3.5 h-3.5" /> 정보 수정
+              </Link>
+            </Button>
+            <DeleteButton id={gecko.id} />
+          </div>
+        </div>
+
+        {/* 인큐베이터 요약 (활성화된 알이 있을 때만 렌더링) */}
+        {activeEggs.length > 0 && (
+          <div className="mb-6">
+            <IncubationSection activeEggs={activeEggs} />
+          </div>
+        )}
+
+        {/* 1. 상단 프로필 하이라이트 섹션 */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* 사진 영역 (정사각형 고정, 둥근 모서리 강조) */}
+          <div className="lg:col-span-5 relative aspect-square rounded-[2rem] overflow-hidden shadow-xl border-4 border-background bg-muted">
+            {gecko.profile_image ? (
+              <Image
+                src={gecko.profile_image}
+                alt={gecko.name}
+                fill
+                className="object-cover hover:scale-105 transition-transform duration-700"
+                unoptimized
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground/30 bg-muted/50">
+                <span className="text-7xl mb-4 drop-shadow-sm">🦎</span>
+                <span className="text-sm font-bold tracking-widest uppercase">
                   No Image
+                </span>
+              </div>
+            )}
+
+            {/* 이미지 오버레이 뱃지 (배란/발정) */}
+            {gecko.is_ovulating && (
+              <div className="absolute top-4 right-4">
+                {gecko.gender === "Female" ? (
+                  <Badge
+                    variant="destructive"
+                    className="animate-pulse shadow-lg px-3 py-1 text-sm border-2 border-background"
+                  >
+                    🥚 배란중 (Ovulating)
+                  </Badge>
+                ) : (
+                  <Badge className="bg-blue-500 hover:bg-blue-600 shadow-lg px-3 py-1 text-sm border-2 border-background text-white">
+                    🔥 발정기 (Rut)
+                  </Badge>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 주요 정보 영역 */}
+          <div className="lg:col-span-7 flex flex-col justify-center space-y-6 lg:py-4">
+            {/* 이름 및 성별 */}
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-foreground">
+                  {gecko.name}
+                </h1>
+                <Badge
+                  variant={
+                    gecko.gender === "Male"
+                      ? "default"
+                      : gecko.gender === "Female"
+                        ? "destructive"
+                        : "secondary"
+                  }
+                  className="px-2.5 py-1 text-sm shadow-sm"
+                >
+                  {gecko.gender === "Male"
+                    ? "♂ 수컷"
+                    : gecko.gender === "Female"
+                      ? "♀ 암컷"
+                      : "미구분"}
+                </Badge>
+              </div>
+              <p className="text-xl font-bold text-primary/80">
+                {gecko.morph || "모프 정보가 없습니다"}
+              </p>
+            </div>
+
+            {/* 핵심 스펙 카드 (몸무게 / 해칭일) */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-card p-4 rounded-2xl border border-border/50 shadow-sm flex items-center gap-4">
+                <div className="p-3 bg-primary/10 rounded-xl text-primary">
+                  <Scale className="w-6 h-6" />
                 </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-0.5">
+                    Weight
+                  </p>
+                  <p className="text-xl font-black">
+                    {gecko.weight ? `${gecko.weight}g` : "측정 전"}
+                  </p>
+                </div>
+              </div>
+              <div className="bg-card p-4 rounded-2xl border border-border/50 shadow-sm flex items-center gap-4">
+                <div className="p-3 bg-orange-500/10 rounded-xl text-orange-500">
+                  <CalendarDays className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-0.5">
+                    Hatched
+                  </p>
+                  <p className="text-xl font-black">
+                    {gecko.birth_date || "미상"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* 특징 및 건강 상태 뱃지 모음 */}
+            <div className="flex flex-wrap gap-2">
+              {gecko.tail_loss && (
+                <Badge
+                  variant="outline"
+                  className="text-orange-600 border-orange-200 bg-orange-50/50 px-3 py-1"
+                >
+                  ✂️ 꼬리 부절
+                </Badge>
+              )}
+              {gecko.mbd && (
+                <Badge
+                  variant="outline"
+                  className="text-red-600 border-red-200 bg-red-50/50 px-3 py-1"
+                >
+                  🦴 MBD 이력
+                </Badge>
+              )}
+              {gecko.has_spots && (
+                <Badge
+                  variant="outline"
+                  className="text-slate-700 border-slate-200 bg-slate-50/50 dark:text-slate-300 dark:border-slate-700 dark:bg-slate-800/50 px-3 py-1"
+                >
+                  ⚫ 점 (Dalmatian)
+                </Badge>
               )}
             </div>
-            <div className="p-8 md:w-1/2">
-              <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
-                {gecko.name}
-                {gecko.is_ovulating &&
-                  (gecko.gender === "Female" ? (
-                    <span className="bg-red-100 text-red-600 text-xs px-2 py-1 rounded-full border border-red-200">
-                      🥚 배란중 (Ovulating)
-                    </span>
-                  ) : gecko.gender === "Male" ? (
-                    <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full border border-blue-200">
-                      🔥 발정 (Rut)
-                    </span>
-                  ) : null)}
-              </h1>
-              <p className="text-gray-500 mb-6">
-                {gecko.morph || "모프 정보 없음"}
-              </p>
-              <div className="flex flex-wrap gap-2 mb-6">
-                {/* 1. 입양 출처 뱃지 */}
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
+
+            {/* 특이사항 메모 */}
+            {gecko.description && (
+              <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10">
+                <p className="font-bold text-primary flex items-center gap-1.5 mb-1.5 text-sm">
+                  <FileText className="w-4 h-4" /> 특이사항 메모
+                </p>
+                <p className="text-foreground/80 leading-relaxed text-sm whitespace-pre-wrap">
+                  {gecko.description}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 2. 세부 정보 카드 (혈통 & 입양) - 2단 그리드 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* 혈통 정보 카드 */}
+          <Card className="shadow-sm border-border/50">
+            <CardHeader className="bg-muted/20 pb-3 border-b border-border/50">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Dna className="w-4 h-4 text-primary" /> 부모 혈통 (Lineage)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-5 space-y-4">
+              {/* Sire */}
+              <div className="flex justify-between items-center p-3 bg-background rounded-xl border border-border/50 shadow-sm">
+                <span className="font-extrabold text-blue-600/80 dark:text-blue-400 text-xs uppercase tracking-widest w-16">
+                  Sire
+                </span>
+                {gecko.sire_detail ? (
+                  <Link
+                    href={`/geckos/${gecko.sire_detail.id}`}
+                    className="text-foreground font-bold hover:text-primary transition-colors flex items-center gap-1"
+                  >
+                    {gecko.sire_detail.name}{" "}
+                    <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                  </Link>
+                ) : (
+                  <span className="font-medium text-muted-foreground text-sm">
+                    {gecko.sire_name || "알 수 없음"}
+                  </span>
+                )}
+              </div>
+              {/* Dam */}
+              <div className="flex justify-between items-center p-3 bg-background rounded-xl border border-border/50 shadow-sm">
+                <span className="font-extrabold text-pink-600/80 dark:text-pink-400 text-xs uppercase tracking-widest w-16">
+                  Dam
+                </span>
+                {gecko.dam_detail ? (
+                  <Link
+                    href={`/geckos/${gecko.dam_detail.id}`}
+                    className="text-foreground font-bold hover:text-primary transition-colors flex items-center gap-1"
+                  >
+                    {gecko.dam_detail.name}{" "}
+                    <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                  </Link>
+                ) : (
+                  <span className="font-medium text-muted-foreground text-sm">
+                    {gecko.dam_name || "알 수 없음"}
+                  </span>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 입양 정보 카드 */}
+          <Card className="shadow-sm border-border/50">
+            <CardHeader className="bg-muted/20 pb-3 border-b border-border/50">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Info className="w-4 h-4 text-primary" /> 입양 상세
+                (Acquisition)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-5 space-y-4">
+              <div className="flex justify-between items-center p-3 bg-background rounded-xl border border-border/50 shadow-sm">
+                <span className="font-bold text-muted-foreground text-xs uppercase tracking-widest">
+                  구분
+                </span>
+                <span className="font-bold text-sm">
                   {gecko.acquisition_type === "Hatched"
                     ? "🐣 직접 해칭"
                     : gecko.acquisition_type === "Rescue"
-                    ? "🚑 구조"
-                    : "🏠 입양"}
-                  {gecko.acquisition_type !== "Hatched" &&
-                    gecko.acquisition_source && (
-                      <span className="ml-1 border-l border-gray-300 pl-1 text-gray-500">
-                        {gecko.acquisition_source}
-                      </span>
-                    )}
+                      ? "🚑 구조/기타"
+                      : "🏠 입양 (분양)"}
                 </span>
-
-                {/* 2. 건강/특징 뱃지 (조건부 렌더링) */}
-                {gecko.tail_loss && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200">
-                    ✂️ 꼬리 부절
-                  </span>
-                )}
-                {gecko.mbd && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
-                    🦴 MBD 이력
-                  </span>
-                )}
-                {gecko.has_spots && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-800 text-white border border-gray-600">
-                    ⚫ 점 있음
-                  </span>
-                )}
               </div>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between border-b pb-2">
-                  <span className="text-gray-600">성별</span>
-                  <span className="font-medium">
-                    {gecko.gender === "Male"
-                      ? "수컷"
-                      : gecko.gender === "Female"
-                      ? "암컷"
-                      : "미구분"}
-                  </span>
-                </div>
-                <div className="flex justify-between border-b pb-2">
-                  <span className="text-gray-600">해칭일</span>
-                  <span className="font-medium">{gecko.birth_date || "-"}</span>
-                </div>
-
-                {/* 혈통 정보 (Lineage) */}
-                <div className="pt-4 mt-4">
-                  <h3 className="text-sm font-bold text-gray-900 mb-3 border-l-4 border-blue-500 pl-2">
-                    🧬 혈통 정보 (Lineage)
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* 아빠 (Sire) */}
-                    <div className="flex flex-col">
-                      <span className="text-xs text-gray-400 mb-1">
-                        부 (Sire)
-                      </span>
-
-                      {/* 1. 내부 개체 ID가 있을 때 (클릭 가능한 카드) */}
-                      {gecko.sire_detail ? (
-                        <Link
-                          href={`/geckos/${gecko.sire_detail.id}`}
-                          className="flex items-center p-2 bg-blue-50 rounded-lg border border-blue-100 hover:bg-blue-100 transition group"
-                        >
-                          {/* 이미지 영역 */}
-                          <div className="relative w-10 h-10 bg-gray-200 rounded-full overflow-hidden border border-blue-200 mr-3 group-hover:scale-105 transition-transform">
-                            {gecko.sire_detail.profile_image ? (
-                              <Image
-                                src={gecko.sire_detail.profile_image}
-                                alt={gecko.sire_detail.name}
-                                fill
-                                className="object-cover"
-                                unoptimized
-                              />
-                            ) : (
-                              <div className="flex items-center justify-center h-full text-[10px] text-gray-400 font-bold">
-                                NO IMG
-                              </div>
-                            )}
-                          </div>
-                          {/* 텍스트 영역 */}
-                          <div className="overflow-hidden">
-                            <p className="text-sm font-bold text-gray-800 truncate group-hover:text-blue-700">
-                              {gecko.sire_detail.name}
-                            </p>
-                            <p className="text-[10px] text-gray-500 truncate">
-                              {gecko.sire_detail.morph || "모프 정보 없음"}
-                            </p>
-                          </div>
-                        </Link>
-                      ) : gecko.sire_name ? (
-                        /* 2. 직접 입력한 이름이 있을 때 (단순 텍스트) */
-                        <div className="flex items-center p-2 bg-gray-50 rounded-lg border border-gray-200">
-                          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center mr-3 text-lg">
-                            🦕
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-gray-700">
-                              {gecko.sire_name}
-                            </p>
-                            <p className="text-[10px] text-gray-400">
-                              외부 개체
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        /* 3. 아무것도 없을 때 */
-                        <div className="p-2 bg-gray-50 rounded-lg text-sm text-gray-400 border border-gray-100 flex items-center justify-center h-14.5">
-                          정보 없음
-                        </div>
-                      )}
-                    </div>
-
-                    {/* 엄마 (Dam) */}
-                    <div className="flex flex-col">
-                      <span className="text-xs text-gray-400 mb-1">
-                        모 (Dam)
-                      </span>
-
-                      {/* 1. 내부 개체 ID가 있을 때 (클릭 가능한 카드) */}
-                      {gecko.dam_detail ? (
-                        <Link
-                          href={`/geckos/${gecko.dam_detail.id}`}
-                          className="flex items-center p-2 bg-pink-50 rounded-lg border border-pink-100 hover:bg-pink-100 transition group"
-                        >
-                          {/* 이미지 영역 */}
-                          <div className="relative w-10 h-10 bg-gray-200 rounded-full overflow-hidden border border-pink-200 mr-3 group-hover:scale-105 transition-transform">
-                            {gecko.dam_detail.profile_image ? (
-                              <Image
-                                src={gecko.dam_detail.profile_image}
-                                alt={gecko.dam_detail.name}
-                                fill
-                                className="object-cover"
-                                unoptimized
-                              />
-                            ) : (
-                              <div className="flex items-center justify-center h-full text-[10px] text-gray-400 font-bold">
-                                NO IMG
-                              </div>
-                            )}
-                          </div>
-                          {/* 텍스트 영역 */}
-                          <div className="overflow-hidden">
-                            <p className="text-sm font-bold text-gray-800 truncate group-hover:text-pink-700">
-                              {gecko.dam_detail.name}
-                            </p>
-                            <p className="text-[10px] text-gray-500 truncate">
-                              {gecko.dam_detail.morph || "모프 정보 없음"}
-                            </p>
-                          </div>
-                        </Link>
-                      ) : gecko.dam_name ? (
-                        /* 2. 직접 입력한 이름이 있을 때 (단순 텍스트) */
-                        <div className="flex items-center p-2 bg-gray-50 rounded-lg border border-gray-200">
-                          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center mr-3 text-lg">
-                            🦎
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-gray-700">
-                              {gecko.dam_name}
-                            </p>
-                            <p className="text-[10px] text-gray-400">
-                              외부 개체
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        /* 3. 아무것도 없을 때 */
-                        <div className="p-2 bg-gray-50 rounded-lg text-sm text-gray-400 border border-gray-100 flex items-center justify-center h-14.5">
-                          정보 없음
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+              <div className="flex justify-between items-center p-3 bg-background rounded-xl border border-border/50 shadow-sm">
+                <span className="font-bold text-muted-foreground text-xs uppercase tracking-widest">
+                  출처
+                </span>
+                <span className="font-bold text-sm text-foreground">
+                  {gecko.acquisition_source || "-"}
+                </span>
               </div>
-            </div>
-          </div>
-          <div className=" p-4 bg-gray-50 rounded-lg text-sm text-gray-700">
-            {gecko.description || "특이사항이 없습니다."}
-          </div>
+            </CardContent>
+          </Card>
         </div>
-        {/* ========================================== */}
-        {/* 2. 통합 사육 일지 (입력 폼 & 테이블) */}
-        {/* ========================================== */}
-        <div className="p-8 border-t">
-          <h2 className="text-xl font-bold mb-4">📝 사육 일지</h2>
 
-          {/* 입력 폼 (성별 전달) */}
-          <LogForm geckoId={gecko.id} currentGender={gecko.gender} />
+        {/* 3. 트래커 및 차트 영역 (넓은 단일 컬럼으로 배치하여 깨짐 방지) */}
+        <div className="space-y-6">
+          <WeightChart logs={gecko.logs} />
+          <MatingTracker logs={gecko.logs} currentGeckoId={gecko.id} />
+          {gecko.gender === "Female" && <EggTracker logs={gecko.logs} />}
+        </div>
 
-          {gecko.logs && gecko.logs.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-gray-100 text-gray-600 uppercase">
-                  <tr>
-                    <th className="px-4 py-3">날짜</th>
-                    <th className="px-4 py-3">타입</th>
-                    <th className="px-4 py-3">내용 (무게/알/파트너)</th>
-                    <th className="px-4 py-3">메모</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {gecko.logs.map((log) => (
-                    <tr key={log.id} className="border-b hover:bg-gray-50">
-                      <td className="px-4 py-3">{log.log_date}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`px-2 py-1 rounded text-xs text-white
-                          ${
-                            log.log_type === "Feeding"
-                              ? "bg-green-500"
-                              : log.log_type === "Weight"
-                              ? "bg-blue-500"
-                              : log.log_type === "Laying"
-                              ? "bg-orange-500"
-                              : log.log_type === "Mating"
-                              ? "bg-pink-500"
-                              : "bg-gray-500"
-                          }`}
+        {/* 4. 사육 일지 (Logs) - 폼과 테이블 완벽 통합 */}
+        <Card className="shadow-lg border-border/60 overflow-hidden">
+          <CardHeader className="bg-background border-b border-border/50 pb-4">
+            <CardTitle className="flex items-center gap-2 font-black text-xl">
+              <Activity className="w-6 h-6 text-primary" /> 사육 일지 (Care
+              Logs)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {/* 일지 입력 폼 (LogForm 컴포넌트 내부에서 처리됨) */}
+            <div className="p-6 bg-muted/10 border-b border-border/50">
+              <LogForm geckoId={gecko.id} currentGender={gecko.gender} />
+            </div>
+
+            {/* 일지 목록 테이블 */}
+            <div className="p-6 bg-background">
+              {gecko.logs && gecko.logs.length > 0 ? (
+                <div className="rounded-xl border border-border/50 overflow-hidden shadow-sm">
+                  <Table>
+                    <TableHeader className="bg-muted/30">
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="w-[120px] font-bold text-muted-foreground">
+                          날짜
+                        </TableHead>
+                        <TableHead className="w-[100px] font-bold text-muted-foreground">
+                          분류
+                        </TableHead>
+                        <TableHead className="font-bold text-muted-foreground">
+                          내용 요약
+                        </TableHead>
+                        <TableHead className="hidden md:table-cell font-bold text-muted-foreground">
+                          메모
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {gecko.logs.map((log) => (
+                        <TableRow
+                          key={log.id}
+                          className="hover:bg-muted/20 transition-colors"
                         >
-                          {log.log_type === "Laying"
-                            ? "🥚 산란"
-                            : log.log_type === "Mating"
-                            ? "💞 메이팅"
-                            : log.log_type}
-                        </span>
-                      </td>
+                          <TableCell className="font-semibold text-sm whitespace-nowrap text-foreground">
+                            {log.log_date}
+                          </TableCell>
 
-                      {/* 내용 표시 (분기 처리) */}
-                      <td className="px-4 py-3">
-                        {/* 1. 무게 */}
-                        {log.log_type === "Weight" && log.weight ? (
-                          <span className="font-bold">{log.weight}g</span>
-                        ) : /* 2. 산란 */
-                        log.log_type === "Laying" ? (
-                          <div className="flex items-center text-sm">
-                            <span
-                              className={
-                                log.is_fertile
-                                  ? "text-blue-600 font-bold"
-                                  : "text-red-500 font-bold"
-                              }
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={`shadow-sm border-none ${
+                                log.log_type === "Feeding"
+                                  ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                                  : log.log_type === "Weight"
+                                    ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                                    : log.log_type === "Laying"
+                                      ? "bg-orange-500/10 text-orange-600 dark:text-orange-400"
+                                      : log.log_type === "Mating"
+                                        ? "bg-pink-500/10 text-pink-600 dark:text-pink-400"
+                                        : "bg-muted text-muted-foreground"
+                              }`}
                             >
-                              {log.is_fertile ? "유정란" : "무정란"}
-                            </span>
-                            <span className="mx-2 text-gray-300">|</span>
-                            <span className="font-medium">
-                              {log.egg_count}개
-                            </span>
-                            {log.egg_condition && (
-                              <span className="ml-2 text-xs text-gray-500">
-                                ({log.egg_condition})
+                              {log.log_type === "Laying"
+                                ? "🥚 산란"
+                                : log.log_type === "Mating"
+                                  ? "💞 메이팅"
+                                  : log.log_type === "Feeding"
+                                    ? "🦗 피딩"
+                                    : "⚖️ 무게"}
+                            </Badge>
+                          </TableCell>
+
+                          <TableCell className="text-sm py-3">
+                            {/* 타입별 내용 렌더링 로직 */}
+                            {log.log_type === "Weight" && log.weight ? (
+                              <span className="font-bold text-base text-foreground">
+                                {log.weight}g
+                              </span>
+                            ) : log.log_type === "Laying" ? (
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={
+                                    log.is_fertile
+                                      ? "text-blue-600 dark:text-blue-400 font-bold"
+                                      : "text-red-500 dark:text-red-400 font-bold"
+                                  }
+                                >
+                                  {log.is_fertile ? "유정란" : "무정란"}
+                                </span>
+                                <span className="text-muted-foreground/30">
+                                  |
+                                </span>
+                                <span className="font-bold text-foreground">
+                                  {log.egg_count}개
+                                </span>
+                                {log.egg_condition && (
+                                  <span className="text-xs text-muted-foreground font-medium ml-1">
+                                    ({log.egg_condition})
+                                  </span>
+                                )}
+                              </div>
+                            ) : log.log_type === "Mating" ? (
+                              <div className="flex items-center gap-2 font-medium">
+                                <span>{log.mating_success ? "✅" : "❌"}</span>
+                                {(() => {
+                                  const isMine = log.gecko === gecko.id;
+                                  const other = isMine
+                                    ? log.partner_detail
+                                    : log.gecko_detail;
+                                  const externalName = isMine
+                                    ? log.partner_name
+                                    : "";
+
+                                  if (other) {
+                                    return (
+                                      <Link
+                                        href={`/geckos/${other.id}`}
+                                        className="text-primary hover:underline font-bold"
+                                      >
+                                        with {other.name}
+                                      </Link>
+                                    );
+                                  } else if (externalName) {
+                                    return (
+                                      <span className="text-foreground">
+                                        with {externalName} (외부)
+                                      </span>
+                                    );
+                                  } else {
+                                    return (
+                                      <span className="text-muted-foreground">
+                                        파트너 없음
+                                      </span>
+                                    );
+                                  }
+                                })()}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground/30">
+                                -
                               </span>
                             )}
-                          </div>
-                        ) : /* 3. 메이팅 (링크 추가) */
-                        log.log_type === "Mating" ? (
-                          <div className="flex items-center space-x-2">
-                            <span>{log.mating_success ? "✅" : "❌"}</span>
+                          </TableCell>
 
-                            {/* 🔥 로직 적용: 내가 쓴 글이면 partner를, 남이 쓴 글이면 작성자(gecko)를 보여줌 */}
-                            {(() => {
-                              const isMine = log.gecko === gecko.id; // 이 로그가 내 것인가?
-                              const other = isMine
-                                ? log.partner_detail
-                                : log.gecko_detail; // 상대방 객체
-                              const externalName = isMine
-                                ? log.partner_name
-                                : ""; // 외부 이름
-
-                              if (other) {
-                                return (
-                                  <Link
-                                    href={`/geckos/${other.id}`}
-                                    className="flex items-center space-x-1 text-blue-600 hover:underline font-bold"
-                                  >
-                                    <span>with {other.name}</span>
-                                    <span className="text-[10px] text-gray-400">
-                                      ↗
-                                    </span>
-                                  </Link>
-                                );
-                              } else if (externalName) {
-                                return (
-                                  <span className="text-gray-700 font-bold">
-                                    with {externalName} (외부)
-                                  </span>
-                                );
-                              } else {
-                                return (
-                                  <span className="text-gray-400">
-                                    파트너 정보 없음
-                                  </span>
-                                );
-                              }
-                            })()}
-                          </div>
-                        ) : (
-                          "-"
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-gray-600">{log.note}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                          <TableCell className="hidden md:table-cell text-muted-foreground text-sm max-w-[200px] truncate">
+                            {log.note || "-"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center p-12 bg-background border-2 border-dashed border-border/60 rounded-2xl">
+                  <FileText className="w-12 h-12 text-muted-foreground/20 mb-3" />
+                  <p className="text-sm text-muted-foreground font-medium">
+                    등록된 사육 일지가 없습니다.
+                  </p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">
+                    위의 폼에서 새로운 기록을 추가해보세요.
+                  </p>
+                </div>
+              )}
             </div>
-          ) : (
-            <p className="text-gray-500 text-center py-4">
-              아직 기록이 없습니다.
-            </p>
-          )}
-        </div>
-        {/* ========================================== */}
-        {/* 3. 대시보드 영역 (그래프 & 트래커) */}
-        {/* ========================================== */}
-
-        {/* 몸무게 그래프 */}
-        <div className="p-8 border-t">
-          <WeightChart logs={gecko.logs} />
-        </div>
-
-        {/* 메이팅 기록 (수컷/암컷 모두 표시) */}
-        <div className="px-8 pb-4">
-          <MatingTracker logs={gecko.logs} currentGeckoId={gecko.id} />
-        </div>
-
-        {/* 산란 기록 (암컷만 표시) */}
-        {gecko.gender === "Female" && (
-          <div className="px-8 pb-4">
-            <EggTracker logs={gecko.logs} />
-          </div>
-        )}
+          </CardContent>
+        </Card>
       </div>
     </main>
   );

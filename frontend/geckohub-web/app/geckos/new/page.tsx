@@ -1,12 +1,44 @@
 "use client";
 
-import { useState, useEffect, ChangeEvent, FormEvent } from "react";
+import { useState, useEffect, ChangeEvent, FormEvent, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { Gecko } from "@/app/types/gecko";
 import MorphModal from "@/app/components/MorphModal";
-import { useSession } from "next-auth/react";
+
+// shadcn/ui 컴포넌트 임포트 (경로를 프로젝트에 맞게 확인하세요)
+import { Input } from "../../components/ui/input";
+import { Label } from "../../components/ui/label";
+import { Textarea } from "../../components/ui/textarea";
+import { Button } from "../../components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../../components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
+import { Switch } from "../../components/ui/switch";
+import { Separator } from "../../components/ui/separator";
+import {
+  Camera,
+  ImagePlus,
+  Loader2,
+  Sparkles,
+  HeartPulse,
+  Dna,
+  Info,
+} from "lucide-react";
+import { toast } from "sonner";
 
 export default function NewGeckoPage() {
   const router = useRouter();
@@ -14,8 +46,9 @@ export default function NewGeckoPage() {
   const [preview, setPreview] = useState<string | null>(null);
   const [isMorphModalOpen, setIsMorphModalOpen] = useState(false);
   const { data: session } = useSession();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 🔥 부모 직접 입력 모드 상태
+  // 부모 직접 입력 모드 상태
   const [isManualSire, setIsManualSire] = useState(false);
   const [isManualDam, setIsManualDam] = useState(false);
 
@@ -28,16 +61,14 @@ export default function NewGeckoPage() {
     morph: "",
     gender: "Unknown",
     birth_date: "",
-    weight: "", // 🔥 [추가] 무게 상태
+    weight: "",
     description: "",
 
-    // 부모 정보
-    sire: "",
+    sire: "none",
     sire_name: "",
-    dam: "",
+    dam: "none",
     dam_name: "",
 
-    // 추가 정보
     is_ovulating: false,
     tail_loss: false,
     mbd: false,
@@ -47,7 +78,7 @@ export default function NewGeckoPage() {
   });
   const [file, setFile] = useState<File | null>(null);
 
-  // 1. 부모 후보군 가져오기
+  // 부모 후보군 로딩
   useEffect(() => {
     const fetchCandidates = async () => {
       if (!session?.user?.djangoToken) return;
@@ -59,9 +90,8 @@ export default function NewGeckoPage() {
               Authorization: `Bearer ${session.user.djangoToken}`,
               "Content-Type": "application/json",
             },
-          }
+          },
         );
-
         if (res.ok) {
           const data: Gecko[] = await res.json();
           setMales(data.filter((g) => g.gender === "Male"));
@@ -75,14 +105,23 @@ export default function NewGeckoPage() {
   }, [session]);
 
   const handleChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // shadcn Select, Switch용 상태 업데이트 함수
+  const handleSelectChange = (name: string, value: string) => {
     if (name === "gender") {
       setFormData((prev) => ({ ...prev, [name]: value, is_ovulating: false }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
+  };
+
+  const handleSwitchChange = (name: string, checked: boolean) => {
+    setFormData((prev) => ({ ...prev, [name]: checked }));
   };
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -96,10 +135,21 @@ export default function NewGeckoPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!formData.name) return alert("이름을 입력해주세요.");
-    if (!session?.user?.djangoToken) {
-      return alert("로그인 세션이 만료되었습니다. 다시 로그인해주세요.");
+
+    // 💡 alert 교체 1: 이름 미입력
+    if (!formData.name) {
+      return toast.error("이름을 입력해주세요.", {
+        description: "게코의 이름은 필수 항목입니다.",
+      });
     }
+
+    // 💡 alert 교체 2: 세션 만료
+    if (!session?.user?.djangoToken) {
+      return toast.warning("로그인 세션이 만료되었습니다.", {
+        description: "다시 로그인한 후 시도해주세요.",
+      });
+    }
+
     setLoading(true);
 
     try {
@@ -110,30 +160,23 @@ export default function NewGeckoPage() {
       data.append("is_ovulating", formData.is_ovulating ? "true" : "false");
 
       if (formData.birth_date) data.append("birth_date", formData.birth_date);
-
-      // 🔥 [추가] 무게 데이터 전송 (값이 있을 때만)
       if (formData.weight) data.append("weight", formData.weight);
-
       data.append("description", formData.description);
 
-      // 부모 정보 처리
+      // 부모 정보
       if (isManualSire) {
         data.append("sire_name", formData.sire_name);
-      } else {
-        if (formData.sire) {
-          data.append("sire", formData.sire);
-        }
+      } else if (formData.sire !== "none") {
+        data.append("sire", formData.sire);
       }
 
       if (isManualDam) {
         data.append("dam_name", formData.dam_name);
-      } else {
-        if (formData.dam) {
-          data.append("dam", formData.dam);
-        }
+      } else if (formData.dam !== "none") {
+        data.append("dam", formData.dam);
       }
 
-      // 건강 및 입양 정보
+      // 건강 및 입양
       data.append("tail_loss", formData.tail_loss ? "true" : "false");
       data.append("mbd", formData.mbd ? "true" : "false");
       data.append("has_spots", formData.has_spots ? "true" : "false");
@@ -152,415 +195,466 @@ export default function NewGeckoPage() {
             Authorization: `Bearer ${session.user.djangoToken}`,
           },
           body: data,
-        }
+        },
       );
 
-      if (!res.ok) {
-        const errorMsg = await res.text();
-        console.error("서버 에러 응답:", errorMsg);
-        throw new Error(`등록 실패: ${res.status} ${errorMsg}`);
-      }
+      if (!res.ok) throw new Error(`등록 실패`);
 
-      alert("등록되었습니다!");
+      // 💡 alert 교체 3: 등록 성공
+      toast.success("새로운 가족이 등록되었습니다! 🎉", {
+        description: `${formData.name}의 프로필이 성공적으로 생성되었습니다.`,
+      });
+
       router.push("/");
       router.refresh();
     } catch (error) {
       console.error(error);
-      alert("오류가 발생했습니다. (개발자 도구 콘솔을 확인해주세요)");
+
+      // 💡 alert 교체 4: 서버 에러
+      toast.error("등록 중 오류가 발생했습니다.", {
+        description: "잠시 후 다시 시도하거나 관리자에게 문의하세요.",
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main className="min-h-screen p-8 bg-gray-50 text-black">
+    <main className="min-h-screen p-4 md:p-8 bg-background text-foreground transition-colors duration-300">
       <MorphModal
         isOpen={isMorphModalOpen}
         onClose={() => setIsMorphModalOpen(false)}
         initialSelected={formData.morph}
-        onApply={(selectedMorphs) => {
-          setFormData((prev) => ({ ...prev, morph: selectedMorphs }));
-        }}
+        onApply={(selectedMorphs) =>
+          handleSelectChange("morph", selectedMorphs)
+        }
       />
 
-      <div className="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-md">
-        <h1 className="text-2xl font-bold mb-6">🦎 새 가족 등록하기</h1>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* 이미지 업로드 */}
+      <div className="max-w-5xl mx-auto space-y-6">
+        <div className="flex items-center justify-between">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              프로필 사진
-            </label>
-            <div className="flex items-center space-x-4">
-              <div className="relative w-24 h-24 bg-gray-200 rounded-lg overflow-hidden border">
-                {preview ? (
-                  <Image
-                    src={preview}
-                    alt="Preview"
-                    fill
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full text-gray-400 text-xs">
-                    No Image
-                  </div>
-                )}
-              </div>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-              />
-            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
+              <Sparkles className="w-8 h-8 text-primary" />새 가족 등록하기
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              새로운 크레스티드 게코의 프로필을 완성해주세요.
+            </p>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                이름 *
-              </label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                required
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none"
-              />
-            </div>
+        <form
+          onSubmit={handleSubmit}
+          noValidate
+          className="grid grid-cols-1 lg:grid-cols-12 gap-6"
+        >
+          {/* 왼쪽: 기본 정보 및 사진 영역 */}
+          <div className="lg:col-span-5 space-y-6">
+            <Card>
+              <CardContent className="p-6">
+                {/* 사진 업로드 UI 개선 */}
+                <div className="flex flex-col items-center justify-center space-y-4 mb-8">
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`relative w-40 h-40 rounded-full border-4 border-dashed flex flex-col items-center justify-center overflow-hidden cursor-pointer transition-all hover:bg-muted/50 ${
+                      preview
+                        ? "border-primary/50"
+                        : "border-muted-foreground/30"
+                    }`}
+                  >
+                    {preview ? (
+                      <Image
+                        src={preview}
+                        alt="Preview"
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <>
+                        <ImagePlus className="w-10 h-10 text-muted-foreground mb-2" />
+                        <span className="text-xs text-muted-foreground font-medium">
+                          사진 업로드
+                        </span>
+                      </>
+                    )}
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                      <Camera className="w-8 h-8 text-white" />
+                    </div>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                  />
+                </div>
 
-            {/* 모프 (모달 연동) */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                모프
-              </label>
-              <div
-                onClick={() => setIsMorphModalOpen(true)}
-                className="mt-1 flex w-full items-center rounded-md border border-gray-300 px-3 py-2 shadow-sm cursor-pointer hover:border-blue-500 hover:ring-1 hover:ring-blue-500 bg-white min-h-10.5"
-              >
-                {formData.morph ? (
-                  <div className="flex flex-wrap gap-1">
-                    {formData.morph.split(",").map((m, idx) => (
-                      <span
-                        key={idx}
-                        className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full font-medium"
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">
+                      이름 <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="name"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      placeholder="게코 이름을 입력하세요"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>모프 (Morph)</Label>
+                    <div
+                      onClick={() => setIsMorphModalOpen(true)}
+                      className="flex min-h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer hover:bg-muted/50 transition-colors"
+                    >
+                      {formData.morph ? (
+                        <div className="flex flex-wrap gap-1">
+                          {formData.morph.split(",").map((m, idx) => (
+                            <span
+                              key={idx}
+                              className="bg-primary/15 text-primary text-xs px-2.5 py-0.5 rounded-full font-semibold"
+                            >
+                              {m.trim()}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">
+                          모프 선택하기
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>성별</Label>
+                      <Select
+                        value={formData.gender}
+                        onValueChange={(val) =>
+                          handleSelectChange("gender", val)
+                        }
                       >
-                        {m.trim()}
-                      </span>
-                    ))}
+                        <SelectTrigger>
+                          <SelectValue placeholder="성별 선택" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Unknown">미구분</SelectItem>
+                          <SelectItem value="Male">♂ 수컷</SelectItem>
+                          <SelectItem value="Female">♀ 암컷</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="weight">무게 (g)</Label>
+                      <Input
+                        id="weight"
+                        name="weight"
+                        type="number"
+                        step="0.01"
+                        value={formData.weight}
+                        onChange={handleChange}
+                        placeholder="0.0"
+                      />
+                    </div>
                   </div>
-                ) : (
-                  <span className="text-gray-400 text-sm">
-                    모프를 선택해주세요
-                  </span>
-                )}
-              </div>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                성별
-              </label>
-              <select
-                name="gender"
-                value={formData.gender}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none"
-              >
-                <option value="Unknown">미구분</option>
-                <option value="Male">수컷</option>
-                <option value="Female">암컷</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                해칭일
-              </label>
-              <input
-                type="date"
-                name="birth_date"
-                value={formData.birth_date}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-
-            {/* 🔥 [추가] 무게 입력 필드 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                무게 (g)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                name="weight"
-                value={formData.weight}
-                onChange={handleChange}
-                placeholder="0.0"
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none"
-              />
-            </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="birth_date">해칭일 (Birth Date)</Label>
+                    <Input
+                      id="birth_date"
+                      name="birth_date"
+                      type="date"
+                      value={formData.birth_date}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
-          {/* 건강 체크박스 */}
-          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <h3 className="text-sm font-bold text-gray-700 mb-3">
-              🏥 건강 및 특징
-            </h3>
-            <div className="flex space-x-6">
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.tail_loss}
-                  onChange={(e) =>
-                    setFormData({ ...formData, tail_loss: e.target.checked })
-                  }
-                  className="w-4 h-4 text-orange-500 rounded focus:ring-orange-400"
-                />
-                <span className="text-sm text-gray-700">✂️ 꼬리 부절</span>
-              </label>
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.mbd}
-                  onChange={(e) =>
-                    setFormData({ ...formData, mbd: e.target.checked })
-                  }
-                  className="w-4 h-4 text-red-500 rounded focus:ring-red-400"
-                />
-                <span className="text-sm text-gray-700">🦴 MBD 이력</span>
-              </label>
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.has_spots}
-                  onChange={(e) =>
-                    setFormData({ ...formData, has_spots: e.target.checked })
-                  }
-                  className="w-4 h-4 text-gray-800 rounded focus:ring-gray-600"
-                />
-                <span className="text-sm text-gray-700">⚫ 점 있음</span>
-              </label>
-            </div>
-          </div>
-
-          {/* 입양 정보 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-blue-50 p-4 rounded-lg border border-blue-100">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                입양 구분
-              </label>
-              <select
-                value={formData.acquisition_type}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    acquisition_type: e.target.value,
-                  })
-                }
-                className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+          {/* 오른쪽: 혈통, 건강, 세부 정보 영역 */}
+          <div className="lg:col-span-7 space-y-6">
+            {/* 성별 특화 상태 (발정/배란) */}
+            {formData.gender !== "Unknown" && (
+              <Card
+                className={`border-2 ${formData.gender === "Female" ? "border-red-500/20 bg-red-500/5" : "border-blue-500/20 bg-blue-500/5"}`}
               >
-                <option value="Purchased">🏠 입양 (분양)</option>
-                <option value="Hatched">🐣 직접 해칭 (Self)</option>
-                <option value="Rescue">🚑 구조/기타</option>
-              </select>
-            </div>
-
-            {formData.acquisition_type !== "Hatched" && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {formData.acquisition_type === "Rescue"
-                    ? "구조 장소/경로"
-                    : "입양처 (브리더/샵)"}
-                </label>
-                <input
-                  type="text"
-                  value={formData.acquisition_source}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      acquisition_source: e.target.value,
-                    })
-                  }
-                  placeholder="예: 게코파크, 홍길동 브리더"
-                  className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                />
-              </div>
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <HeartPulse
+                      className={
+                        formData.gender === "Female"
+                          ? "text-red-500"
+                          : "text-blue-500"
+                      }
+                    />
+                    <div className="space-y-0.5">
+                      <Label className="text-base font-bold">
+                        {formData.gender === "Female"
+                          ? "배란(Ovulation) 상태인가요?"
+                          : "발정(Rut) 상태인가요?"}
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        상태를 체크해두면 스케줄 관리에 도움이 됩니다.
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={formData.is_ovulating}
+                    onCheckedChange={(c) =>
+                      handleSwitchChange("is_ovulating", c)
+                    }
+                    className="data-[state=unchecked]:bg-gray-300 dark:data-[state=unchecked]:bg-gray-700"
+                  />
+                </CardContent>
+              </Card>
             )}
-          </div>
 
-          {/* 성별에 따른 상태 체크 (배란/발정) */}
-          {formData.gender !== "Unknown" && (
-            <div
-              className={`flex items-center p-4 rounded-lg border 
-                ${
-                  formData.gender === "Female"
-                    ? "bg-red-50 border-red-100"
-                    : "bg-blue-50 border-blue-100"
-                }`}
-            >
-              <input
-                type="checkbox"
-                id="ovulating"
-                checked={formData.is_ovulating}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    is_ovulating: e.target.checked,
-                  }))
-                }
-                className={`w-5 h-5 rounded border-gray-300 
-                  ${
-                    formData.gender === "Female"
-                      ? "text-red-600 focus:ring-red-500"
-                      : "text-blue-600 focus:ring-blue-500"
-                  }`}
-              />
-              <label
-                htmlFor="ovulating"
-                className={`ml-3 text-sm font-bold 
-                  ${
-                    formData.gender === "Female"
-                      ? "text-red-700"
-                      : "text-blue-700"
-                  }`}
+            {/* 혈통 정보 (Lineage) */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Dna className="w-5 h-5" /> 부모 혈통 (Lineage)
+                </CardTitle>
+                <CardDescription>
+                  혈통 추적을 위해 부모 개체를 연결하거나 직접 입력하세요.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* 부 (Sire) */}
+                <div className="p-4 rounded-lg bg-muted/30 border border-border/50 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="font-bold text-blue-600 dark:text-blue-400">
+                      부 (Sire)
+                    </Label>
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="manualSire"
+                        checked={isManualSire}
+                        onCheckedChange={setIsManualSire}
+                        className="data-[state=unchecked]:bg-gray-300 dark:data-[state=unchecked]:bg-gray-700"
+                      />
+                      <Label
+                        htmlFor="manualSire"
+                        className="text-xs text-muted-foreground cursor-pointer"
+                      >
+                        직접 입력
+                      </Label>
+                    </div>
+                  </div>
+                  {!isManualSire ? (
+                    <Select
+                      value={formData.sire}
+                      onValueChange={(val) => handleSelectChange("sire", val)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="등록된 수컷 중 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">
+                          선택 안 함 (Unknown)
+                        </SelectItem>
+                        {males.map((g) => (
+                          <SelectItem key={g.id} value={g.id.toString()}>
+                            {g.name} ({g.morph})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      name="sire_name"
+                      value={formData.sire_name}
+                      onChange={handleChange}
+                      placeholder="부 개체 이름 직접 입력"
+                    />
+                  )}
+                </div>
+
+                {/* 모 (Dam) */}
+                <div className="p-4 rounded-lg bg-muted/30 border border-border/50 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="font-bold text-pink-600 dark:text-pink-400">
+                      모 (Dam)
+                    </Label>
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="manualDam"
+                        checked={isManualDam}
+                        onCheckedChange={setIsManualDam}
+                        className="data-[state=unchecked]:bg-gray-300 dark:data-[state=unchecked]:bg-gray-700"
+                      />
+                      <Label
+                        htmlFor="manualDam"
+                        className="text-xs text-muted-foreground cursor-pointer"
+                      >
+                        직접 입력
+                      </Label>
+                    </div>
+                  </div>
+                  {!isManualDam ? (
+                    <Select
+                      value={formData.dam}
+                      onValueChange={(val) => handleSelectChange("dam", val)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="등록된 암컷 중 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">
+                          선택 안 함 (Unknown)
+                        </SelectItem>
+                        {females.map((g) => (
+                          <SelectItem key={g.id} value={g.id.toString()}>
+                            {g.name} ({g.morph})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      name="dam_name"
+                      value={formData.dam_name}
+                      onChange={handleChange}
+                      placeholder="모 개체 이름 직접 입력"
+                    />
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 건강 및 특징 */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <HeartPulse className="w-5 h-5" /> 건강 및 특징
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="flex items-center justify-between p-3 border rounded-lg bg-card">
+                    <Label className="cursor-pointer">✂️ 꼬리 부절</Label>
+                    <Switch
+                      checked={formData.tail_loss}
+                      onCheckedChange={(c) =>
+                        handleSwitchChange("tail_loss", c)
+                      }
+                      className="data-[state=unchecked]:bg-gray-300 dark:data-[state=unchecked]:bg-gray-700"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between p-3 border rounded-lg bg-card">
+                    <Label className="cursor-pointer">🦴 MBD 이력</Label>
+                    <Switch
+                      checked={formData.mbd}
+                      onCheckedChange={(c) => handleSwitchChange("mbd", c)}
+                      className="data-[state=unchecked]:bg-gray-300 dark:data-[state=unchecked]:bg-gray-700"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between p-3 border rounded-lg bg-card">
+                    <Label className="cursor-pointer">⚫ 점 </Label>
+                    <Switch
+                      checked={formData.has_spots}
+                      onCheckedChange={(c) =>
+                        handleSwitchChange("has_spots", c)
+                      }
+                      className="data-[state=unchecked]:bg-gray-300 dark:data-[state=unchecked]:bg-gray-700"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 입양 및 세부 사항 */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Info className="w-5 h-5" /> 입양 및 세부 사항
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>입양 구분</Label>
+                    <Select
+                      value={formData.acquisition_type}
+                      onValueChange={(val) =>
+                        handleSelectChange("acquisition_type", val)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Purchased">
+                          🏠 입양 (분양)
+                        </SelectItem>
+                        <SelectItem value="Hatched">
+                          🐣 직접 해칭 (Self)
+                        </SelectItem>
+                        <SelectItem value="Rescue">🚑 구조/기타</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {formData.acquisition_type !== "Hatched" && (
+                    <div className="space-y-2">
+                      <Label>
+                        {formData.acquisition_type === "Rescue"
+                          ? "구조 장소/경로"
+                          : "입양처 (브리더/샵)"}
+                      </Label>
+                      <Input
+                        name="acquisition_source"
+                        value={formData.acquisition_source}
+                        onChange={handleChange}
+                        placeholder="예: 게코파크, 홍길동 브리더"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>특이사항 메모</Label>
+                  <Textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleChange}
+                    placeholder="성격, 먹이 반응 등 자유롭게 적어주세요."
+                    rows={3}
+                    className="resize-none"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 액션 버튼 */}
+            <div className="flex justify-end gap-4 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push("/")}
               >
-                {formData.gender === "Female"
-                  ? "현재 배란(Ovulation) 진행 중인가요? 🥚"
-                  : "현재 발정(Rut) 상태인가요? 🔥"}
-              </label>
+                취소
+              </Button>
+              <Button
+                type="submit"
+                disabled={loading}
+                className="px-8 font-bold"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 등록 중...
+                  </>
+                ) : (
+                  "등록 완료"
+                )}
+              </Button>
             </div>
-          )}
-
-          {/* 부모 선택 영역 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
-            {/* 아빠 (Sire) */}
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <label className="block text-sm font-medium text-gray-700">
-                  부 (Sire)
-                </label>
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="manualSire"
-                    checked={isManualSire}
-                    onChange={(e) => setIsManualSire(e.target.checked)}
-                    className="w-3 h-3 text-blue-600 rounded"
-                  />
-                  <label
-                    htmlFor="manualSire"
-                    className="ml-1 text-xs text-gray-500 cursor-pointer"
-                  >
-                    직접 입력
-                  </label>
-                </div>
-              </div>
-              {!isManualSire ? (
-                <select
-                  name="sire"
-                  value={formData.sire}
-                  onChange={handleChange}
-                  className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                >
-                  <option value="">선택 안 함 (Unknown)</option>
-                  {males.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name} ({g.morph})
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  type="text"
-                  name="sire_name"
-                  value={formData.sire_name}
-                  onChange={handleChange}
-                  placeholder="부 개체 이름 직접 입력"
-                  className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                />
-              )}
-            </div>
-
-            {/* 엄마 (Dam) */}
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <label className="block text-sm font-medium text-gray-700">
-                  모 (Dam)
-                </label>
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="manualDam"
-                    checked={isManualDam}
-                    onChange={(e) => setIsManualDam(e.target.checked)}
-                    className="w-3 h-3 text-pink-600 rounded"
-                  />
-                  <label
-                    htmlFor="manualDam"
-                    className="ml-1 text-xs text-gray-500 cursor-pointer"
-                  >
-                    직접 입력
-                  </label>
-                </div>
-              </div>
-              {!isManualDam ? (
-                <select
-                  name="dam"
-                  value={formData.dam}
-                  onChange={handleChange}
-                  className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                >
-                  <option value="">선택 안 함 (Unknown)</option>
-                  {females.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name} ({g.morph})
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  type="text"
-                  name="dam_name"
-                  value={formData.dam_name}
-                  onChange={handleChange}
-                  placeholder="모 개체 이름 직접 입력"
-                  className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                />
-              )}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              특이사항
-            </label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              rows={3}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none"
-            />
-          </div>
-
-          <div className="flex justify-end space-x-3 pt-4 border-t">
-            <Link
-              href="/"
-              className="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-            >
-              취소
-            </Link>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-4 py-2 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
-            >
-              {loading ? "등록 중..." : "등록하기"}
-            </button>
           </div>
         </form>
       </div>

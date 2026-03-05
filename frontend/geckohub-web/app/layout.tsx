@@ -3,7 +3,11 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Providers from "./components/Provider";
-// 🔥 방금 만든 Providers 가져오기
+
+import { ThemeToggle } from "./components/theme-toggle";
+import LoginButton from "./components/LoginButton";
+import { Toaster } from "./components/ui/sonner";
+import { Header } from "./components/layout/main-nav";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -18,10 +22,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ko">
+    <html lang="ko" suppressHydrationWarning>
       <body className={inter.className}>
-        {/* 🔥 여기서 감싸줘야 useSession을 쓸 수 있습니다 */}
-        <Providers>{children}</Providers>
+        <Providers>
+          <div className="relative flex min-h-screen flex-col">
+            <Header />
+            <div className="flex-1">{children}</div>
+            <Toaster position="top-center" richColors />
+          </div>
+        </Providers>
       </body>
     </html>
   );
