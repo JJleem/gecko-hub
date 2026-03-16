@@ -2,9 +2,23 @@
 
 import { useState, useEffect, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Gecko } from "../types/gecko";
 import { useSession } from "next-auth/react";
+import { toast } from "sonner";
+import { Gecko } from "../types/gecko";
 import { apiClient } from "@/lib/api";
+
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { Switch } from "./ui/switch";
+import { Plus, X, Loader2, Heart, Egg } from "lucide-react";
 
 export default function LogForm({
   geckoId,
@@ -18,8 +32,6 @@ export default function LogForm({
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [partners, setPartners] = useState<Gecko[]>([]);
-
-  // [추가] 직접 입력 모드인지 여부
   const [isManualPartner, setIsManualPartner] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -30,40 +42,60 @@ export default function LogForm({
     egg_count: "2",
     is_fertile: true,
     egg_condition: "",
-    partner: "", // ID 저장용
-    partner_name: "", // [추가] 이름 직접 입력용
+    partner: "",
+    partner_name: "",
     mating_success: true,
   });
 
-  // 메이팅 선택 시 파트너 목록 로딩
   useEffect(() => {
     if (
       formData.log_type === "Mating" &&
       partners.length === 0 &&
       session?.user?.djangoToken
     ) {
-      apiClient(session.user.djangoToken).get('/api/geckos/')
+      apiClient(session.user.djangoToken)
+        .get("/api/geckos/")
         .then((res) => res.json())
         .then((data: Gecko[]) => {
-          const candidates = data.filter(
-            (g) =>
-              g.id !== geckoId &&
-              (currentGender === "Unknown" || g.gender !== currentGender)
+          setPartners(
+            data.filter(
+              (g) =>
+                g.id !== geckoId &&
+                (currentGender === "Unknown" || g.gender !== currentGender),
+            ),
           );
-          setPartners(candidates);
         })
         .catch((err) => console.error("파트너 로딩 실패:", err));
     }
-  }, [
-    formData.log_type,
-    geckoId,
-    currentGender,
-    partners.length,
-    session, // 의존성 추가
-  ]);
+  }, [formData.log_type, geckoId, currentGender, partners.length, session]);
+
+  const handleClose = () => {
+    setIsOpen(false);
+    setIsManualPartner(false);
+    setFormData({
+      log_date: new Date().toISOString().split("T")[0],
+      log_type: "Feeding",
+      weight: "",
+      note: "",
+      egg_count: "2",
+      is_fertile: true,
+      egg_condition: "",
+      partner: "",
+      partner_name: "",
+      mating_success: true,
+    });
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+
+    if (!session?.user?.djangoToken) {
+      toast.warning("로그인 세션이 만료되었습니다.", {
+        description: "다시 로그인한 후 시도해주세요.",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -87,134 +119,157 @@ export default function LogForm({
           formData.log_type === "Mating" && isManualPartner
             ? formData.partner_name
             : "",
-
         mating_success:
           formData.log_type === "Mating" ? formData.mating_success : false,
       };
-      const res = await apiClient(session!.user.djangoToken).post('/api/logs/', payload);
+
+      const res = await apiClient(session.user.djangoToken).post(
+        "/api/logs/",
+        payload,
+      );
 
       if (!res.ok) {
         const errorData = await res.json();
-        console.log("서버 에러:", errorData);
-        alert(`저장 실패: ${JSON.stringify(errorData)}`);
-        throw new Error("API 요청 실패");
+        toast.error("저장에 실패했습니다.", {
+          description: JSON.stringify(errorData),
+        });
+        return;
       }
 
-      alert("기록되었습니다! 📝");
-      // 초기화
-      setFormData({
-        ...formData,
-        weight: "",
-        note: "",
-        partner: "",
-        partner_name: "",
+      toast.success("기록이 저장되었습니다.", {
+        description: `${formData.log_date} / ${LOG_TYPE_LABELS[formData.log_type] ?? formData.log_type}`,
       });
-      setIsManualPartner(false);
-      setIsOpen(false);
+      handleClose();
       router.refresh();
     } catch (error) {
       console.error(error);
-      alert("에러가 발생했습니다.");
+      toast.error("오류가 발생했습니다.", {
+        description: "잠시 후 다시 시도해주세요.",
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="mb-8">
+    <div>
       {!isOpen ? (
-        <button
+        <Button
+          variant="outline"
+          className="w-full border-dashed border-2 h-11 text-muted-foreground hover:text-primary hover:border-primary transition-colors"
           onClick={() => setIsOpen(true)}
-          className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-blue-500 hover:text-blue-500 transition font-medium"
         >
-          + 기록 추가하기 (피딩, 무게 등)
-        </button>
+          <Plus className="w-4 h-4 mr-2" />
+          기록 추가하기
+        </Button>
       ) : (
-        <div className="bg-white p-6 rounded-xl border border-blue-100 shadow-sm">
-          <h3 className="font-bold text-lg mb-4">새로운 기록 남기기</h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+          {/* 폼 헤더 */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-muted/30">
+            <p className="font-bold text-base">새로운 기록 남기기</p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              onClick={handleClose}
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-5 space-y-5">
+            {/* 날짜 + 타입 */}
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">날짜</label>
-                <input
+              <div className="space-y-1.5">
+                <Label>날짜</Label>
+                <Input
                   type="date"
                   value={formData.log_date}
                   onChange={(e) =>
                     setFormData({ ...formData, log_date: e.target.value })
                   }
-                  className="w-full border rounded p-2 text-sm"
                   required
                 />
               </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">타입</label>
-                <select
+              <div className="space-y-1.5">
+                <Label>기록 종류</Label>
+                <Select
                   value={formData.log_type}
-                  onChange={(e) =>
-                    setFormData({ ...formData, log_type: e.target.value })
+                  onValueChange={(val) =>
+                    setFormData({ ...formData, log_type: val })
                   }
-                  className="w-full border rounded p-2 text-sm"
                 >
-                  <option value="Feeding">🦗 피딩</option>
-                  <option value="Weight">⚖️ 체중 측정</option>
-                  <option value="Mating">💞 메이팅 (Pairing)</option>
-                  <option value="Laying">🥚 산란 (Laying)</option>
-                  <option value="Shedding">👕 탈피</option>
-                  <option value="Cleaning">🧹 청소</option>
-                  <option value="Etc">🎸 기타</option>
-                </select>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Feeding">🦗 피딩</SelectItem>
+                    <SelectItem value="Weight">⚖️ 체중 측정</SelectItem>
+                    <SelectItem value="Mating">💞 메이팅 (Pairing)</SelectItem>
+                    <SelectItem value="Laying">🥚 산란 (Laying)</SelectItem>
+                    <SelectItem value="Shedding">🐍 탈피</SelectItem>
+                    <SelectItem value="Cleaning">🧹 청소</SelectItem>
+                    <SelectItem value="Etc">📝 기타</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
-            {/* 메이팅 폼 */}
+            {/* 메이팅 전용 섹션 */}
             {formData.log_type === "Mating" && (
-              <div className="bg-pink-50 p-3 rounded-lg border border-pink-100 space-y-3">
-                <p className="text-xs font-bold text-pink-600">
-                  💞 메이팅 정보 입력
+              <div className="rounded-lg border border-pink-500/20 bg-pink-500/5 p-4 space-y-4">
+                <p className="text-xs font-bold text-pink-600 dark:text-pink-400 flex items-center gap-1.5">
+                  <Heart className="w-3.5 h-3.5" /> 메이팅 정보
                 </p>
-                <div className="flex space-x-4">
-                  <div className="flex-1">
-                    <div className="flex justify-between items-center mb-1">
-                      <label className="block text-xs text-gray-500">
-                        파트너
-                      </label>
-                      {/* 직접 입력 토글 체크박스 */}
-                      <div className="flex items-center">
-                        <input
-                          type="checkbox"
+                <div className="grid grid-cols-2 gap-4">
+                  {/* 파트너 */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>파트너</Label>
+                      <div className="flex items-center gap-1.5">
+                        <Switch
                           id="manualPartner"
                           checked={isManualPartner}
-                          onChange={(e) => setIsManualPartner(e.target.checked)}
-                          className="w-3 h-3 rounded text-pink-600 focus:ring-pink-500"
+                          onCheckedChange={(c) => {
+                            setIsManualPartner(c);
+                            setFormData((prev) => ({
+                              ...prev,
+                              partner: "",
+                              partner_name: "",
+                            }));
+                          }}
+                          className="scale-75 data-[state=unchecked]:bg-gray-300 dark:data-[state=unchecked]:bg-gray-700"
                         />
-                        <label
+                        <Label
                           htmlFor="manualPartner"
-                          className="ml-1 text-[10px] text-gray-500 cursor-pointer"
+                          className="text-xs text-muted-foreground cursor-pointer"
                         >
                           직접 입력
-                        </label>
+                        </Label>
                       </div>
                     </div>
-
-                    {/* 모드에 따라 SelectBox 또는 Input 보여주기 */}
                     {!isManualPartner ? (
-                      <select
+                      <Select
                         value={formData.partner}
-                        onChange={(e) =>
-                          setFormData({ ...formData, partner: e.target.value })
+                        onValueChange={(val) =>
+                          setFormData({ ...formData, partner: val })
                         }
-                        className="w-full border rounded p-2 text-sm"
                       >
-                        <option value="">목록에서 선택</option>
-                        {partners.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name} ({p.gender})
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger>
+                          <SelectValue placeholder="목록에서 선택" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">선택 안 함</SelectItem>
+                          {partners.map((p) => (
+                            <SelectItem key={p.id} value={String(p.id)}>
+                              {p.name} ({p.gender === "Male" ? "수컷" : "암컷"})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     ) : (
-                      <input
-                        type="text"
+                      <Input
                         placeholder="이름 직접 입력"
                         value={formData.partner_name}
                         onChange={(e) =>
@@ -223,88 +278,87 @@ export default function LogForm({
                             partner_name: e.target.value,
                           })
                         }
-                        className="w-full border rounded p-2 text-sm"
                       />
                     )}
                   </div>
-                  <div className="flex-1">
-                    <label className="block text-xs text-gray-500 mb-1">
-                      성공 여부
-                    </label>
-                    <select
+                  {/* 성공 여부 */}
+                  <div className="space-y-2">
+                    <Label>성공 여부</Label>
+                    <Select
                       value={formData.mating_success ? "true" : "false"}
-                      onChange={(e) =>
+                      onValueChange={(val) =>
                         setFormData({
                           ...formData,
-                          mating_success: e.target.value === "true",
+                          mating_success: val === "true",
                         })
                       }
-                      className="w-full border rounded p-2 text-sm"
                     >
-                      <option value="true">✅ 성공 (Lock)</option>
-                      <option value="false">❌ 실패 (거부/Fail)</option>
-                    </select>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="true">✅ 성공 (Lock)</SelectItem>
+                        <SelectItem value="false">❌ 실패 / 거부</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* 산란 폼 */}
+            {/* 산란 전용 섹션 */}
             {formData.log_type === "Laying" && (
-              <div className="bg-orange-50 p-3 rounded-lg border border-orange-100 space-y-3">
-                <p className="text-xs font-bold text-orange-600">
-                  🥚 산란 정보 입력
+              <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-4 space-y-4">
+                <p className="text-xs font-bold text-orange-600 dark:text-orange-400 flex items-center gap-1.5">
+                  <Egg className="w-3.5 h-3.5" /> 산란 정보
                 </p>
-                <div className="flex space-x-4">
-                  <div className="flex-1">
-                    <label className="block text-xs text-gray-500 mb-1">
-                      개수
-                    </label>
-                    <select
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>알 개수</Label>
+                    <Select
                       value={formData.egg_count}
-                      onChange={(e) =>
-                        setFormData({ ...formData, egg_count: e.target.value })
+                      onValueChange={(val) =>
+                        setFormData({ ...formData, egg_count: val })
                       }
-                      className="w-full border rounded p-2 text-sm"
                     >
-                      <option value="1">1개</option>
-                      <option value="2">2개</option>
-                    </select>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1개</SelectItem>
+                        <SelectItem value="2">2개</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="flex-1">
-                    <label className="block text-xs text-gray-500 mb-1">
-                      유정란 여부
-                    </label>
-                    <select
+                  <div className="space-y-1.5">
+                    <Label>유정란 여부</Label>
+                    <Select
                       value={formData.is_fertile ? "true" : "false"}
-                      onChange={(e) =>
+                      onValueChange={(val) =>
                         setFormData({
                           ...formData,
-                          is_fertile: e.target.value === "true",
+                          is_fertile: val === "true",
                         })
                       }
-                      className="w-full border rounded p-2 text-sm"
                     >
-                      <option value="true">⭕ 유정란</option>
-                      <option value="false">❌ 무정란</option>
-                    </select>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="true">⭕ 유정란</SelectItem>
+                        <SelectItem value="false">❌ 무정란</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">
-                    알 상태 (눈꽃, 찌그러짐 등)
-                  </label>
-                  <input
-                    type="text"
+                <div className="space-y-1.5">
+                  <Label>알 상태</Label>
+                  <Input
+                    placeholder="예: 예쁜 눈꽃알, 딤플 있음"
                     value={formData.egg_condition}
                     onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        egg_condition: e.target.value,
-                      })
+                      setFormData({ ...formData, egg_condition: e.target.value })
                     }
-                    placeholder="예: 예쁜 눈꽃알, 딤플 있음"
-                    className="w-full border rounded p-2 text-sm"
                   />
                 </div>
               </div>
@@ -312,11 +366,9 @@ export default function LogForm({
 
             {/* 공통 입력 (몸무게, 메모) */}
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">
-                  몸무게 (g)
-                </label>
-                <input
+              <div className="space-y-1.5">
+                <Label>몸무게 (g)</Label>
+                <Input
                   type="number"
                   step="0.1"
                   placeholder="0.0"
@@ -324,38 +376,39 @@ export default function LogForm({
                   onChange={(e) =>
                     setFormData({ ...formData, weight: e.target.value })
                   }
-                  className="w-full border rounded p-2 text-sm"
                 />
               </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">메모</label>
-                <input
-                  type="text"
+              <div className="space-y-1.5">
+                <Label>메모</Label>
+                <Input
                   placeholder="특이사항 입력"
                   value={formData.note}
                   onChange={(e) =>
                     setFormData({ ...formData, note: e.target.value })
                   }
-                  className="w-full border rounded p-2 text-sm"
                 />
               </div>
             </div>
 
-            <div className="flex justify-end space-x-2 pt-2">
-              <button
+            {/* 액션 버튼 */}
+            <div className="flex justify-end gap-2 pt-1">
+              <Button
                 type="button"
-                onClick={() => setIsOpen(false)}
-                className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded"
+                variant="ghost"
+                onClick={handleClose}
+                disabled={loading}
               >
                 취소
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-              >
-                {loading ? "저장 중..." : "저장"}
-              </button>
+              </Button>
+              <Button type="submit" disabled={loading} className="px-6">
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" /> 저장 중...
+                  </>
+                ) : (
+                  "저장"
+                )}
+              </Button>
             </div>
           </form>
         </div>
@@ -363,3 +416,13 @@ export default function LogForm({
     </div>
   );
 }
+
+const LOG_TYPE_LABELS: Record<string, string> = {
+  Feeding: "피딩",
+  Weight: "체중 측정",
+  Mating: "메이팅",
+  Laying: "산란",
+  Shedding: "탈피",
+  Cleaning: "청소",
+  Etc: "기타",
+};
