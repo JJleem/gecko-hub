@@ -55,7 +55,10 @@ export default function Home() {
 
     const fetchSettings = async () => {
       try {
-        const res = await apiClient(session.user.djangoToken).get('/api/settings/');
+        if (!session.user.djangoToken) return;
+        const res = await apiClient(session.user.djangoToken).get(
+          "/api/settings/",
+        );
         if (res.ok) {
           const data = await res.json();
           setFeedingDays(data.feeding_days || []);
@@ -83,7 +86,10 @@ export default function Home() {
 
     const fetchGeckos = async () => {
       try {
-        const res = await apiClient(session.user.djangoToken).get('/api/geckos/');
+        if (!session?.user?.djangoToken) return;
+        const res = await apiClient(session.user.djangoToken).get(
+          "/api/geckos/",
+        );
 
         if (!res.ok) throw new Error("Failed to fetch");
 
@@ -121,7 +127,9 @@ export default function Home() {
     setFeedingDays(newDays);
 
     try {
-      await apiClient(session.user.djangoToken).post('/api/settings/', { feeding_days: newDays });
+      await apiClient(session.user.djangoToken).post("/api/settings/", {
+        feeding_days: newDays,
+      });
     } catch (error) {
       console.error("설정 저장 실패", error);
       alert("설정 저장에 실패했습니다.");
@@ -129,6 +137,11 @@ export default function Home() {
   };
 
   const handleBulkFeeding = async () => {
+    // 1. 토큰을 상수로 먼저 할당합니다.
+    const token = session?.user?.djangoToken;
+
+    // 2. 상수를 기준으로 검사합니다. 여기서 걸러지면 아래부터 token은 무조건 'string'입니다.
+    if (!token) return;
     if (geckos.length === 0) return;
     if (!confirm(`총 ${geckos.length}마리에게 피딩 기록을 추가하시겠습니까?`))
       return;
@@ -137,7 +150,8 @@ export default function Home() {
 
     try {
       const promises = geckos.map((gecko) =>
-        apiClient(session!.user.djangoToken).post('/api/logs/', {
+        // 3. session.user.djangoToken 대신 확정된 token 변수를 사용합니다.
+        apiClient(token).post("/api/logs/", {
           gecko: gecko.id,
           log_type: "Feeding",
           log_date: todayStr,
