@@ -79,11 +79,15 @@ export default function Home() {
 
   // 게코 데이터 불러오기
   useEffect(() => {
+    if (status === "loading") return;
     if (status === "unauthenticated") {
       setLoading(false);
       return;
     }
-    if (!session?.user.djangoToken) return;
+    if (!session?.user?.djangoToken) {
+      setLoading(false);
+      return;
+    }
 
     const fetchGeckos = async () => {
       try {
