@@ -9,7 +9,7 @@ from geckos.views import GeckoViewSet, CareLogViewSet, UserSettingsView
 # 라우터 설정
 router = DefaultRouter()
 router.register(r'geckos', GeckoViewSet, basename='gecko')  # /api/geckos/
-router.register(r'logs', CareLogViewSet)  # /api/logs/
+router.register(r'logs', CareLogViewSet, basename='carelog')  # /api/logs/
 
 urlpatterns = [
     path('admin/', admin.site.urls),
