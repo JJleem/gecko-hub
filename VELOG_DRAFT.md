@@ -1,96 +1,45 @@
-# [개인 프로젝트] GeckoHub — 레오파드 게코 개체 관리 웹 서비스 개발기
+# GeckoHub 개발기 2편 — "기능은 됐고, 이제 제대로 만들자"
 
-> 태그: `Next.js`, `Django`, `Zustand`, `React Flow`, `개인프로젝트`, `풀스택`
-
----
-
-## 왜 만들었나
-
-레오파드 게코를 키우면서 개체 관리를 엑셀로 하고 있었다. 피딩 날짜, 체중, 메이팅 기록, 산란 날짜, 부화 예정일... 개체 수가 늘어날수록 스프레드시트가 감당이 안 됐다. 파충류 특화 관리 앱은 국내에 없었고, 해외 앱도 UI가 구리거나 기능이 너무 단순했다. 그래서 직접 만들기로 했다.
+> Claude와 함께한 리팩토링 & 고도화 여정
 
 ---
 
-## 스택 선택
+## 🔙 지난 이야기
 
-**프론트엔드: Next.js + TypeScript**
+1편에서 Gemini를 백엔드 사수로 채용해 GeckoHub MVP를 3시간 컷으로 완성했다.
+로그인, 개체 CRUD, 피딩 스케줄러, 인큐베이터 로직 — 핵심 기능은 모두 돌아갔다.
 
-App Router를 써보고 싶기도 했고, Vercel 배포가 편하다는 것도 이유였다. 상태관리는 처음엔 아무것도 안 쓰다가 페이지마다 API를 다시 불러오는 게 너무 느려서 Zustand를 도입했다.
+그런데 막상 배포해놓고 매일 쓰다 보니 불만이 쌓이기 시작했다.
 
-**백엔드: Django REST Framework**
+> "페이지 이동할 때마다 로딩이 너무 길다."
+> "UI가... 좀 투박하다. 프론트엔드 개발자라는 자존심이 허락하지 않는다."
+> "혈통 관계도가 텍스트로만 나오는데, 실제로 트리로 보고 싶다."
 
-Python에 익숙하고, DRF가 CRUD API 만들기에 빠르다. 데이터베이스는 Supabase(PostgreSQL)를 붙였다. 둘 다 Vercel에 배포했는데, cold start 때문에 첫 응답이 느린 게 단점이다.
+1편 마지막에 "다음엔 디자인을 입히러 가야겠다"고 했는데, 결국 디자인만이 아니라 **구조부터 다시 뜯게 됐다.** 이번엔 Claude를 파트너로 잡고 고도화를 시작했다.
 
 ---
 
-## 구현한 기능들
+## 🤖 왜 Claude로 갈아탔나?
 
-### 개체 관리 (CRUD)
-기본 중의 기본이지만 신경 쓴 부분이 있다. 모프(Morph) 선택 모달을 따로 만들었는데, 레오파드 게코의 유전자 체계가 생각보다 복잡하다. Tremper, Bell, Rainwater, Mack Snow 같은 알비노 계열 분류와 조합이 있어서 그냥 텍스트 입력으로 두면 데이터가 제각각이 된다. 모달로 체계화했다.
+Gemini로 빠르게 MVP를 찍는 건 좋았는데, 리팩토링이나 코드 품질 개선처럼 "기존 코드를 이해하고 개선하는" 작업에서는 컨텍스트를 잃어버리는 경우가 많았다. Claude는 대화 맥락을 더 잘 유지하면서, "이 코드가 왜 느린지"부터 "어떻게 고치면 되는지"까지 흐름이 끊기지 않고 이어지는 느낌이었다.
 
-프로필 이미지는 Supabase Storage에 업로드하고 URL을 DB에 저장하는 방식이다.
+---
 
-### 사육 일지 (Care Logs)
-피딩, 체중 측정, 메이팅, 산란, 탈피, 청소, 기타 7가지 타입을 지원한다.
+## 🐢 첫 번째 문제: 느린 로딩
 
-메이팅 기록이 좀 특이한데, 같은 컬렉션 내 개체를 파트너로 연결하거나 외부 개체 이름을 직접 입력할 수 있다. 연결된 경우 양쪽 개체의 기록 탭에 상호 참조로 보인다. 이 양방향 참조를 백엔드에서 처리하는 게 처음에 좀 까다로웠다. `mating_logs`라는 역참조 관계를 따로 시리얼라이저에 추가해서 해결했다.
+배포하고 나서 가장 먼저 체감한 문제였다.
 
-산란 기록은 유정란/무정란 여부, 알 개수, 알 상태를 기록하고, 유정란이면 자동으로 예상 부화일을 계산해서 인큐베이팅 트래커에 반영한다.
+홈 → 개체 상세 → 다시 홈으로 돌아오면, **매번 로딩 스피너가 돌았다.** Vercel + Supabase 조합의 cold start 특성상 첫 응답이 특히 느렸다.
 
-### 체중 그래프
-Recharts로 구현한 꺾은선 그래프. Weight 타입 로그만 필터링해서 날짜순으로 표시한다.
+원인을 파고들어 보니 두 가지였다.
 
-### 인터랙티브 혈통 관계도
-이게 이번 프로젝트에서 가장 재미있었던 부분이다.
+### 원인 1: N+1 쿼리
 
-처음엔 그냥 텍스트로 Sire/Dam을 보여줬는데, 혈통이 복잡해질수록 시각화가 필요했다. `@xyflow/react` (React Flow)를 도입했다.
+Django 백엔드가 홈 화면에서 게코 목록을 불러올 때, 게코 10마리면 쿼리가 50개 이상 나가고 있었다.
 
-구조는 3단계다:
-- 위: 부모 (Sire는 파란색, Dam은 핑크색)
-- 중간: 현재 개체
-- 아래: 이 개체의 자녀들 (초록색 엣지)
+`GeckoSerializer`의 `get_logs()` 메서드가 매 게코마다 DB를 개별로 조회하고 있었던 것이다. 전형적인 N+1 문제.
 
-양방향 관계가 핵심 과제였다. 기존에는 부모 → 자녀 방향만 저장돼 있었고, 부모의 상세 페이지에서는 자녀 목록이 안 보였다. 백엔드에서 `sire_children`, `dam_children` 역참조를 prefetch하고 `children` 필드를 시리얼라이저에 추가해서 해결했다.
-
-React Flow 특성상 SSR이 안 된다. `next/dynamic`으로 `ssr: false`를 써서 클라이언트에서만 로드하고, 로딩 중엔 Skeleton을 보여준다.
-
-다크모드 대응도 필요했는데, `next-themes`의 `useTheme`에서 `resolvedTheme`을 가져와 React Flow의 `colorMode` prop에 넘겨줬다.
-
-### 글로벌 캐시 (Zustand)
-개발하다 보니 페이지 이동할 때마다 API를 다시 부르는 게 체감상 너무 느렸다. Vercel + Supabase 조합의 cold start 문제가 크다.
-
-Zustand로 게코 목록을 전역으로 들고 다니게 했다. 포인트는 두 가지다:
-
-**1. 3분 stale-while-revalidate**
-```typescript
-const STALE_MS = 3 * 60 * 1000;
-
-isStale: () => {
-  const { lastFetched } = get();
-  if (!lastFetched) return true;
-  return Date.now() - lastFetched > STALE_MS;
-}
-```
-캐시가 살아있으면 즉시 렌더하고, stale하면 백그라운드에서 revalidation.
-
-**2. localStorage persist**
-```typescript
-import { persist } from "zustand/middleware";
-
-export const useGeckoStore = create<GeckoStore>()(
-  persist(
-    (set, get) => ({ ... }),
-    { name: "gecko-store" }
-  )
-);
-```
-앱 내 클라이언트 라우팅은 메모리 스토어가 그대로 살아있어서 재조회가 없다. F5 새로고침이나 새 탭으로 열어도 localStorage에서 복원해서 즉시 렌더된다.
-
-등록/수정/삭제/로그아웃 시에는 `clear()`를 호출해서 캐시를 강제 무효화한다.
-
-### N+1 쿼리 문제
-처음 배포하고 홈 로딩이 비정상적으로 느렸다. Django Debug Toolbar로 찍어보니 게코 10개 조회에 쿼리가 50개 이상 나가고 있었다.
-
-`GeckoSerializer`에서 `get_logs()` 메서드가 매 게코마다 DB를 치고 있었던 것. `select_related` + `prefetch_related`로 해결했다.
+`select_related` + `prefetch_related`로 한 방에 해결했다.
 
 ```python
 def _gecko_queryset_with_prefetch():
@@ -104,40 +53,159 @@ def _gecko_queryset_with_prefetch():
     )
 ```
 
+쿼리 수가 극적으로 줄었다.
+
+### 원인 2: 페이지마다 API를 새로 부른다
+
+홈에서 개체 목록을 불러오고, 상세 페이지 갔다가 다시 홈에 오면 또 API를 부른다. 같은 데이터를 계속 새로 받아오는 셈이다.
+
+Claude에게 물었더니 Zustand로 전역 캐시를 두는 방식을 제안했다.
+
+**핵심 아이디어는 간단하다:**
+- 처음 불러온 게코 목록을 전역 스토어에 저장한다
+- 3분 이내면 API 안 부르고 스토어에서 꺼낸다 (stale-while-revalidate)
+- F5 새로고침이나 새 탭에서도 즉시 렌더되도록 localStorage에 persist한다
+
+```typescript
+// 3분 지나야 stale 처리
+const STALE_MS = 3 * 60 * 1000;
+
+isStale: () => {
+  const { lastFetched } = get();
+  if (!lastFetched) return true;
+  return Date.now() - lastFetched > STALE_MS;
+}
+```
+
+```typescript
+// localStorage 영속화
+export const useGeckoStore = create<GeckoStore>()(
+  persist(
+    (set, get) => ({ ... }),
+    { name: "gecko-store" }
+  )
+);
+```
+
+이렇게 하면 페이지를 돌아다녀도, 새로고침을 해도, 새 탭으로 열어도 — 캐시 유효 시간 내엔 API 없이 즉시 렌더된다.
+
+물론 등록/수정/삭제/로그아웃 시엔 `clear()`를 호출해서 캐시를 강제로 날린다. 오래된 데이터를 보여주면 안 되니까.
+
 ---
 
-## 개발하면서 막힌 것들
+## 🎨 두 번째 문제: 투박한 UI
 
-### DRF router `basename` 오류
-`ViewSet`에 `queryset` 속성 없이 `get_queryset()`만 정의하면 DRF 라우터가 basename을 자동으로 추론하지 못한다. `AssertionError: basename argument not specified` 에러가 난다.
+MVP는 기능 중심으로 빠르게 짰다 보니, 솔직히 디자인이 많이 아쉬웠다. 프론트엔드 개발자 자존심 문제였다.
+
+shadcn/ui를 전면 도입해서 컴포넌트 체계를 잡고, TailwindCSS v4로 올리면서 다크모드를 제대로 구현했다.
+
+**달라진 것들:**
+- 홈 대시보드: 카드 그리드 + 상단 요약 통계 바 (총 게코 수 / 부화 중 알 / 오늘 피딩)
+- 인큐베이터 위젯: D-day 프로그레스 바로 시각화
+- 개체 상세 페이지: 탭 구조로 개편 (개요 / 성장 기록 / 관계도)
+
+특히 개체 상세 페이지는 기존에 스크롤로 쭉 내려가는 긴 페이지였는데, 탭으로 나누니까 훨씬 깔끔해졌다.
+
+---
+
+## 🌳 세 번째 문제: 혈통 관계도가 텍스트다
+
+원래 혈통 관계는 그냥 "Sire: OOO / Dam: OOO" 텍스트 카드로 보여줬다. 개체가 많아지니까 이게 한계였다. 실제 트리 형태로 시각화하고 싶었다.
+
+Claude한테 얘기했더니 `@xyflow/react` (React Flow)를 제안했다.
+
+**구조는 3단계:**
+
+```
+[Sire] ──────── [Dam]
+    \              /
+        [현재 개체]
+        /    |    \
+  [자녀1] [자녀2] [자녀3]
+```
+
+- 파란 엣지 = Sire 관계
+- 핑크 엣지 = Dam 관계
+- 초록 엣지 = 자녀 관계
+- 노드 클릭 시 해당 개체 페이지로 이동
+
+근데 여기서 문제가 생겼다.
+
+### 양방향 관계 버그
+
+기존 데이터 구조는 **부모 → 자녀** 방향만 저장하고 있었다. 즉, 부모 개체의 상세 페이지에서 자녀 목록이 안 보이는 것이다. 트리를 그리려면 반대 방향도 있어야 했다.
+
+백엔드에서 역참조를 prefetch하고 `children` 필드를 시리얼라이저에 추가해서 해결했다.
 
 ```python
-# 이렇게 하면 된다
+def get_children(self, obj):
+    from_sire = list(obj.sire_children.all())
+    from_dam = list(obj.dam_children.all())
+    seen = set()
+    unique = []
+    for c in from_sire + from_dam:
+        if c.id not in seen:
+            seen.add(c.id)
+            unique.append(c)
+    return ParentGeckoSerializer(unique, many=True).data
+```
+
+이제 부모 페이지에서도 자녀가 보이고, 자녀 페이지에서도 부모가 보인다.
+
+### SSR 문제
+
+React Flow는 브라우저 API를 쓰기 때문에 Next.js SSR 환경에서 그냥 import하면 에러가 난다.
+
+`next/dynamic`으로 `ssr: false`를 써서 클라이언트에서만 로드하고, 로딩 중엔 Skeleton을 보여주는 방식으로 처리했다.
+
+```typescript
+const LineageTreeFlow = dynamic(() => import("./LineageTreeFlow"), {
+  ssr: false,
+  loading: () => <Skeleton className="w-full h-[520px] rounded-xl" />,
+});
+```
+
+---
+
+## 🔧 그 외 자잘한 트러블슈팅
+
+### DRF `basename` 오류
+
+배포하고 나서 갑자기 서버가 안 뜨는 상황이 생겼다.
+
+```
+AssertionError: basename argument not specified
+```
+
+DRF 라우터는 `ViewSet`에 `queryset`이 없으면 basename을 자동으로 추론하지 못한다. `get_queryset()`만 정의한 `CareLogViewSet`이 문제였다.
+
+```python
+# 해결: basename 명시
 router.register(r'logs', CareLogViewSet, basename='carelog')
 ```
 
-### Next.js App Router SSR 함정
-서버 컴포넌트에서 `cookies()`나 `next/headers`를 쓰다가 클라이언트 컴포넌트로 전환하는 과정에서 꽤 헤맸다. App Router에서 인증 토큰이 필요한 API 호출은 전부 클라이언트에서 하게 됐다.
+### 배포 후 데이터 없음
 
-### WSL에서 git push
-Windows 경로를 WSL에서 git 레포로 쓸 때 `.git/config.lock`에 `chmod` 에러가 계속 났다. 실제 push는 성공하는데 에러 메시지가 같이 나와서 처음엔 실패한 줄 알았다. WSL과 Windows 파일시스템 권한 차이 때문인데, 무시해도 된다.
+배포하고 나서 화면이 빈 채로 나왔다. 한참 삽질하다가 원인을 찾았는데...
 
----
-
-## 아쉬운 점 / 앞으로 할 것
-
-- 모바일 최적화가 부족하다. 반응형은 되는데 터치 UX를 더 다듬어야 한다.
-- 인큐베이터 온도/습도 기록 기능이 없다. 추가할 예정이다.
-- 게코 공유 기능 (다른 사람이 내 게코 프로필을 볼 수 있는 링크)
-- 피딩 알림 푸시 기능
+백엔드 Vercel 환경변수에 `SECRET_KEY`가 빠져 있었다. 환경변수 추가하니까 바로 됐다. 이런 게 제일 허탈하다.
 
 ---
 
-## 마무리
+## 💭 마치며
 
-처음엔 개인 도구로 만들려고 시작했는데, 만들다 보니 꽤 완성도 있는 서비스가 됐다. 파충류 키우는 사람들한테 실제로 쓸 수 있는 서비스를 만들었다는 게 뿌듯하다.
+1편에서 "백엔드 진입장벽을 부수는 망치"라고 했는데, 2편을 쓰면서 느낌이 조금 달라졌다.
 
-코드는 GitHub에 올려뒀다.
+Gemini랑 MVP를 찍을 땐 "AI가 만들어준다"는 느낌이 강했다면, Claude랑 리팩토링을 하면서는 "AI랑 같이 생각한다"는 느낌이 더 강했다. 코드가 왜 느린지, 어떻게 구조를 잡으면 좋은지 — 그냥 코드를 뱉어주는 게 아니라 이유를 설명하면서 같이 고민해주는 느낌?
+
+뭐가 됐든, MVP 이후 "이게 뭔가 좀 부족한데"에서 "이 정도면 써도 되겠다"로 바뀐 건 맞다.
+
+아직 하고 싶은 것들이 남아 있다:
+- 인큐베이터 온도/습도 기록
+- 개체 프로필 공유 링크
+- 피딩 푸시 알림
+
+천천히 만들어 나갈 예정이다.
 
 **GitHub →** https://github.com/JJleem/gecko-hub
 **Live →** https://geckohub.vercel.app
