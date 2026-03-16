@@ -10,10 +10,8 @@ import {
   calculateHatchingDate,
 } from "@/app/constants/incubation";
 import { calculateBreeding } from "@/app/utils/morphCalculator";
-import {
-  getDday,
-  getImageUrl
-} from "../utils/client-utils"; // Import from client-utils
+import { getDday, getImageUrl } from "../utils/client-utils";
+import { apiClient } from "@/lib/api";
 
 import {
   Dialog,
@@ -123,15 +121,7 @@ export default function IncubatorPage() {
     if (!session?.user?.djangoToken) return;
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/geckos/`,
-        {
-          headers: {
-            Authorization: `Bearer ${session.user.djangoToken}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const res = await apiClient(session.user.djangoToken).get('/api/geckos/');
       const geckos: Gecko[] = await res.json();
 
       const females = geckos.filter((g) => g.gender === "Female");
@@ -251,15 +241,7 @@ export default function IncubatorPage() {
     if (!session?.user?.djangoToken) return alert("로그인이 필요합니다.");
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/logs/${id}/`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${session.user.djangoToken}`,
-          },
-        }
-      );
+      const res = await apiClient(session.user.djangoToken).delete(`/api/logs/${id}/`);
 
       if (!res.ok) throw new Error("삭제 실패");
       alert("삭제되었습니다.");
@@ -296,20 +278,10 @@ export default function IncubatorPage() {
       };
 
       // 🔥 editingId가 있으면 PATCH(수정), 없으면 POST(생성)
-      const url = editingId
-        ? `${process.env.NEXT_PUBLIC_API_URL}/api/logs/${editingId}/`
-        : `${process.env.NEXT_PUBLIC_API_URL}/api/logs/`;
-
-      const method = editingId ? "PATCH" : "POST";
-
-      const res = await fetch(url, {
-        method: method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.user.djangoToken}`,
-        },
-        body: JSON.stringify(payload),
-      });
+      const client = apiClient(session.user.djangoToken);
+      const res = editingId
+        ? await client.patch(`/api/logs/${editingId}/`, payload)
+        : await client.post('/api/logs/', payload);
 
       if (!res.ok) throw new Error("요청 실패");
 

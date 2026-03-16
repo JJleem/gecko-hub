@@ -9,6 +9,7 @@ import { useSession } from "next-auth/react";
 import { Gecko } from "@/app/types/gecko";
 import MorphModal from "@/app/components/MorphModal";
 import { toast } from "sonner";
+import { apiClient } from "@/lib/api";
 
 // shadcn/ui 컴포넌트 임포트 (경로를 프로젝트에 맞게 확인하세요)
 import { Input } from "../../../components/ui/input";
@@ -89,16 +90,15 @@ export default function EditGeckoPage({
       const resolvedParams = await params;
 
       try {
+        const token = session?.user?.djangoToken ?? '';
+        const client = apiClient(token);
+
         // 1. 내 정보 가져오기
-        const myRes = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/geckos/${resolvedParams.id}/`,
-        );
+        const myRes = await client.get(`/api/geckos/${resolvedParams.id}/`);
         const myData = await myRes.json();
 
         // 2. 전체 리스트 가져오기 (부모 후보군용)
-        const listRes = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/geckos/`,
-        );
+        const listRes = await client.get('/api/geckos/');
         const listData: Gecko[] = await listRes.json();
 
         // 아빠 설정
@@ -248,16 +248,7 @@ export default function EditGeckoPage({
 
       const resolvedParams = await params;
 
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/geckos/${resolvedParams.id}/`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${session.user.djangoToken}`,
-          },
-          body: data,
-        },
-      );
+      const res = await apiClient(session.user.djangoToken).patchForm(`/api/geckos/${resolvedParams.id}/`, data);
 
       if (!res.ok) throw new Error("수정 실패");
 

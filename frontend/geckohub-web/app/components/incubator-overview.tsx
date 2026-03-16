@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { Gecko, CareLog } from "../types/gecko";
 import { getDday, getImageUrl } from "../utils/client-utils";
+import { apiClient } from "@/lib/api";
 
 interface EggLog {
   id: number;
@@ -25,7 +26,7 @@ export function IncubatorOverview() {
   const { data: session } = useSession();
   const [eggs, setEggs] = useState<EggLog[]>([]);
   const [loading, setLoading] = useState(true);
-  console.log(session);
+
   useEffect(() => {
     if (session?.user?.djangoToken) {
       fetchEggs();
@@ -36,17 +37,8 @@ export function IncubatorOverview() {
     if (!session?.user?.djangoToken) return;
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/geckos/`,
-        {
-          headers: {
-            Authorization: `Bearer ${session.user.djangoToken}`,
-            "Content-Type": "application/json",
-          },
-        },
-      );
+      const res = await apiClient(session.user.djangoToken).get('/api/geckos/');
       const geckos: Gecko[] = await res.json();
-      console.log(res);
       const females = geckos.filter((g) => g.gender === "Female");
 
       const allEggs: EggLog[] = females.flatMap((g) => {

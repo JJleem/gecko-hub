@@ -4,6 +4,7 @@ import { useState, useEffect, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Gecko } from "../types/gecko";
 import { useSession } from "next-auth/react";
+import { apiClient } from "@/lib/api";
 
 export default function LogForm({
   geckoId,
@@ -41,12 +42,7 @@ export default function LogForm({
       partners.length === 0 &&
       session?.user?.djangoToken
     ) {
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/geckos/`, {
-        headers: {
-          Authorization: `Bearer ${session.user.djangoToken}`,
-          "Content-Type": "application/json",
-        },
-      })
+      apiClient(session.user.djangoToken).get('/api/geckos/')
         .then((res) => res.json())
         .then((data: Gecko[]) => {
           const candidates = data.filter(
@@ -95,15 +91,7 @@ export default function LogForm({
         mating_success:
           formData.log_type === "Mating" ? formData.mating_success : false,
       };
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/logs/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-
-          Authorization: `Bearer ${session?.user.djangoToken}`,
-        },
-        body: JSON.stringify(payload),
-      });
+      const res = await apiClient(session!.user.djangoToken).post('/api/logs/', payload);
 
       if (!res.ok) {
         const errorData = await res.json();

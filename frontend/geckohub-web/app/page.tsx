@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { Gecko } from "./types/gecko";
+import { apiClient } from "@/lib/api";
 import LoginButton from "./components/LoginButton";
 import { IncubatorOverview } from "./components/incubator-overview";
 import { ThemeToggle } from "./components/theme-toggle";
@@ -54,12 +55,7 @@ export default function Home() {
 
     const fetchSettings = async () => {
       try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/settings/`,
-          {
-            headers: { Authorization: `Bearer ${session.user.djangoToken}` },
-          },
-        );
+        const res = await apiClient(session.user.djangoToken).get('/api/settings/');
         if (res.ok) {
           const data = await res.json();
           setFeedingDays(data.feeding_days || []);
@@ -87,12 +83,7 @@ export default function Home() {
 
     const fetchGeckos = async () => {
       try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/geckos/`,
-          {
-            headers: { Authorization: `Bearer ${session.user.djangoToken}` },
-          },
-        );
+        const res = await apiClient(session.user.djangoToken).get('/api/geckos/');
 
         if (!res.ok) throw new Error("Failed to fetch");
 
@@ -130,14 +121,7 @@ export default function Home() {
     setFeedingDays(newDays);
 
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/settings/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.user.djangoToken}`,
-        },
-        body: JSON.stringify({ feeding_days: newDays }),
-      });
+      await apiClient(session.user.djangoToken).post('/api/settings/', { feeding_days: newDays });
     } catch (error) {
       console.error("설정 저장 실패", error);
       alert("설정 저장에 실패했습니다.");
@@ -153,18 +137,11 @@ export default function Home() {
 
     try {
       const promises = geckos.map((gecko) =>
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/logs/`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session?.user.djangoToken}`,
-          },
-          body: JSON.stringify({
-            gecko: gecko.id,
-            log_type: "Feeding",
-            log_date: todayStr,
-            note: "일괄 피딩 완료 ✅",
-          }),
+        apiClient(session!.user.djangoToken).post('/api/logs/', {
+          gecko: gecko.id,
+          log_type: "Feeding",
+          log_date: todayStr,
+          note: "일괄 피딩 완료 ✅",
         }),
       );
 

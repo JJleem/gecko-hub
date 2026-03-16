@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react"; // 👈 1. 세션 훅 임포트
+import { useSession } from "next-auth/react";
+import { apiClient } from "@/lib/api";
 
 export default function DeleteButton({ id }: { id: number }) {
   const router = useRouter();
@@ -22,16 +23,7 @@ export default function DeleteButton({ id }: { id: number }) {
       return;
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/geckos/${id}/`, // 주소 환경변수 쓰는 게 좋아요
-        {
-          method: "DELETE",
-          // 👇 3. 여기가 핵심! 토큰을 헤더에 실어 보내야 합니다.
-          headers: {
-            Authorization: `Bearer ${session.user.djangoToken}`,
-          },
-        },
-      );
+      const res = await apiClient(session.user.djangoToken).delete(`/api/geckos/${id}/`);
 
       if (!res.ok) {
         // 에러 메시지 확인용

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { Gecko } from "@/app/types/gecko";
 import MorphModal from "@/app/components/MorphModal";
+import { apiClient } from "@/lib/api";
 
 // shadcn/ui 컴포넌트 임포트 (경로를 프로젝트에 맞게 확인하세요)
 import { Input } from "../../components/ui/input";
@@ -83,15 +84,7 @@ export default function NewGeckoPage() {
     const fetchCandidates = async () => {
       if (!session?.user?.djangoToken) return;
       try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/geckos/`,
-          {
-            headers: {
-              Authorization: `Bearer ${session.user.djangoToken}`,
-              "Content-Type": "application/json",
-            },
-          },
-        );
+        const res = await apiClient(session.user.djangoToken).get('/api/geckos/');
         if (res.ok) {
           const data: Gecko[] = await res.json();
           setMales(data.filter((g) => g.gender === "Male"));
@@ -187,16 +180,7 @@ export default function NewGeckoPage() {
         data.append("profile_image", file);
       }
 
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/geckos/`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${session.user.djangoToken}`,
-          },
-          body: data,
-        },
-      );
+      const res = await apiClient(session.user.djangoToken).postForm('/api/geckos/', data);
 
       if (!res.ok) throw new Error(`등록 실패`);
 
