@@ -1,4 +1,5 @@
 from rest_framework import viewsets, permissions
+from django.db.models import Prefetch
 from .models import Gecko, CareLog
 from .serializers import GeckoSerializer, CareLogSerializer
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
@@ -6,6 +7,12 @@ from .models import UserSettings
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+def _gecko_queryset_with_prefetch():
+    log_qs = CareLog.objects.select_related('partner', 'gecko')
+    return Gecko.objects.select_related('sire', 'dam').prefetch_related(
+        Prefetch('logs', queryset=log_qs),
+        Prefetch('mating_logs', queryset=log_qs),
+    )
 
 class GeckoViewSet(viewsets.ModelViewSet):
     serializer_class = GeckoSerializer
@@ -14,11 +21,11 @@ class GeckoViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         # 상세 조회(retrieve)는 전체 DB에서 탐색 (혈통 링크 지원)
         if self.action == 'retrieve':
-            return Gecko.objects.all()
+            return _gecko_queryset_with_prefetch()
 
         # 목록 조회는 내 개체만, 비회원은 빈 리스트
         if self.request.user.is_authenticated:
-            return Gecko.objects.filter(user=self.request.user)
+            return _gecko_queryset_with_prefetch().filter(user=self.request.user)
         return Gecko.objects.none()
 
     def perform_create(self, serializer):
