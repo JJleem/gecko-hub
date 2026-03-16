@@ -9,6 +9,7 @@ import { useSession } from "next-auth/react";
 import { Gecko } from "@/app/types/gecko";
 import MorphModal from "@/app/components/MorphModal";
 import { toast } from "sonner";
+import { useGeckoStore } from "@/app/stores/geckoStore";
 import { apiClient } from "@/lib/api";
 
 // shadcn/ui 컴포넌트 임포트 (경로를 프로젝트에 맞게 확인하세요)
@@ -49,6 +50,7 @@ export default function EditGeckoPage({
 }) {
   const router = useRouter();
   const { data: session } = useSession();
+  const clearGeckoStore = useGeckoStore((s) => s.clear);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [males, setMales] = useState<Gecko[]>([]);
@@ -256,8 +258,8 @@ export default function EditGeckoPage({
         description: "변경된 정보가 성공적으로 저장되었습니다.",
       });
 
+      clearGeckoStore(); // 캐시 무효화 → 상세 페이지 재조회
       router.push(`/geckos/${resolvedParams.id}`);
-      router.refresh();
     } catch (error) {
       console.error(error);
       toast.error("수정 중 오류가 발생했습니다.", {

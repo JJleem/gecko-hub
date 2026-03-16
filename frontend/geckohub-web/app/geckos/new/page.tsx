@@ -40,9 +40,11 @@ import {
   Info,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useGeckoStore } from "@/app/stores/geckoStore";
 
 export default function NewGeckoPage() {
   const router = useRouter();
+  const clearGeckoStore = useGeckoStore((s) => s.clear);
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [isMorphModalOpen, setIsMorphModalOpen] = useState(false);
@@ -189,8 +191,8 @@ export default function NewGeckoPage() {
         description: `${formData.name}의 프로필이 성공적으로 생성되었습니다.`,
       });
 
+      clearGeckoStore(); // 캐시 무효화 → 홈 복귀 시 최신 목록 재조회
       router.push("/");
-      router.refresh();
     } catch (error) {
       console.error(error);
 
