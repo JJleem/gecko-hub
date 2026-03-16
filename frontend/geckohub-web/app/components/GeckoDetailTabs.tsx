@@ -33,7 +33,13 @@ import LogForm from "@/app/components/LogForm";
 import IncubationSection from "@/app/components/IncubationSection";
 import LineageTree from "@/app/components/LineageTree";
 
-export default function GeckoDetailTabs({ gecko }: { gecko: Gecko }) {
+export default function GeckoDetailTabs({
+  gecko,
+  onRefresh,
+}: {
+  gecko: Gecko;
+  onRefresh?: () => void;
+}) {
   const activeEggs = gecko.logs
     .filter(
       (l) =>
@@ -171,7 +177,7 @@ export default function GeckoDetailTabs({ gecko }: { gecko: Gecko }) {
           </CardHeader>
           <CardContent className="p-0">
             <div className="p-6 bg-muted/10 border-b border-border/50">
-              <LogForm geckoId={gecko.id} currentGender={gecko.gender} />
+              <LogForm geckoId={gecko.id} currentGender={gecko.gender} onSuccess={onRefresh} />
             </div>
             <div className="p-6 bg-background">
               {gecko.logs && gecko.logs.length > 0 ? (

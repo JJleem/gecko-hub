@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect, FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { Gecko } from "../types/gecko";
 import { apiClient } from "@/lib/api";
+import { useGeckoStore } from "@/app/stores/geckoStore";
 
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -23,12 +23,14 @@ import { Plus, X, Loader2, Heart, Egg } from "lucide-react";
 export default function LogForm({
   geckoId,
   currentGender,
+  onSuccess,
 }: {
   geckoId: number;
   currentGender: string;
+  onSuccess?: () => void;
 }) {
-  const router = useRouter();
   const { data: session } = useSession();
+  const storedGeckos = useGeckoStore((s) => s.geckos);
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [partners, setPartners] = useState<Gecko[]>([]);
@@ -48,26 +50,30 @@ export default function LogForm({
   });
 
   useEffect(() => {
-    if (
-      formData.log_type === "Mating" &&
-      partners.length === 0 &&
-      session?.user?.djangoToken
-    ) {
+    if (formData.log_type !== "Mating" || partners.length > 0) return;
+
+    const filtered = (list: Gecko[]) =>
+      list.filter(
+        (g) =>
+          g.id !== geckoId &&
+          (currentGender === "Unknown" || g.gender !== currentGender),
+      );
+
+    // 스토어에 데이터가 있으면 API 호출 없이 바로 사용
+    if (storedGeckos.length > 0) {
+      setPartners(filtered(storedGeckos));
+      return;
+    }
+
+    // 스토어가 비어있으면 API 호출
+    if (session?.user?.djangoToken) {
       apiClient(session.user.djangoToken)
         .get("/api/geckos/")
         .then((res) => res.json())
-        .then((data: Gecko[]) => {
-          setPartners(
-            data.filter(
-              (g) =>
-                g.id !== geckoId &&
-                (currentGender === "Unknown" || g.gender !== currentGender),
-            ),
-          );
-        })
+        .then((data: Gecko[]) => setPartners(filtered(data)))
         .catch((err) => console.error("파트너 로딩 실패:", err));
     }
-  }, [formData.log_type, geckoId, currentGender, partners.length, session]);
+  }, [formData.log_type, geckoId, currentGender, partners.length, session, storedGeckos]);
 
   const handleClose = () => {
     setIsOpen(false);
@@ -140,7 +146,7 @@ export default function LogForm({
         description: `${formData.log_date} / ${LOG_TYPE_LABELS[formData.log_type] ?? formData.log_type}`,
       });
       handleClose();
-      router.refresh();
+      onSuccess?.();
     } catch (error) {
       console.error(error);
       toast.error("오류가 발생했습니다.", {

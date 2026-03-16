@@ -6,9 +6,11 @@ import Image from "next/image";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
 import { LogOut } from "lucide-react";
+import { useGeckoStore } from "@/app/stores/geckoStore";
 
 export default function LoginButton() {
   const { data: session, status } = useSession();
+  const clearGeckoStore = useGeckoStore((s) => s.clear);
 
   // Django 토큰 만료 검사
   useEffect(() => {
@@ -77,7 +79,7 @@ export default function LoginButton() {
         )}
 
         <Button
-          onClick={() => signOut()}
+          onClick={() => { clearGeckoStore(); signOut(); }}
           variant="outline"
           size="sm"
           className="gap-2 hidden sm:flex"
@@ -88,7 +90,7 @@ export default function LoginButton() {
 
         {/* 모바일용 아이콘 로그아웃 버튼 */}
         <Button
-          onClick={() => signOut()}
+          onClick={() => { clearGeckoStore(); signOut(); }}
           variant="outline"
           size="icon"
           className="sm:hidden"

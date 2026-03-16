@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { Gecko } from "./types/gecko";
 import { apiClient } from "@/lib/api";
+import { useGeckoStore } from "./stores/geckoStore";
 import { toast } from "sonner";
 import LoginButton from "./components/LoginButton";
 import { IncubatorOverview } from "./components/incubator-overview";
@@ -42,7 +43,13 @@ const DAYS = [
 export default function Home() {
   const { data: session, status } = useSession();
   const [geckos, setGeckos] = useState<Gecko[]>([]);
-  const [loading, setLoading] = useState(true); // 초기값을 true로 설정
+  const [loading, setLoading] = useState(true);
+
+  const {
+    geckos: cachedGeckos,
+    isStale,
+    setGeckos: storeSetGeckos,
+  } = useGeckoStore();
 
   // 피딩 스케줄 상태
   const [feedingDays, setFeedingDays] = useState<number[]>([]);
@@ -77,7 +84,18 @@ export default function Home() {
     setIsFeedingDay(feedingDays.includes(today));
   }, [feedingDays]);
 
-  // 게코 데이터 불러오기
+  // 피딩 완료 상태 계산 헬퍼
+  const applyGeckos = (data: Gecko[]) => {
+    setGeckos(data);
+    const todayStr = new Date().toISOString().split("T")[0];
+    let fedCount = 0;
+    data.forEach((g) => {
+      if (g.logs.find((l) => l.log_type === "Feeding" && l.log_date === todayStr)) fedCount++;
+    });
+    setIsFedToday(data.length > 0 && fedCount > 0);
+  };
+
+  // 게코 데이터 불러오기 (스토어 캐시 우선)
   useEffect(() => {
     if (status === "loading") return;
     if (status === "unauthenticated") {
@@ -89,29 +107,21 @@ export default function Home() {
       return;
     }
 
+    // ─── 캐시 히트: 즉시 렌더 ────────────────────────────
+    if (!isStale() && cachedGeckos.length > 0) {
+      applyGeckos(cachedGeckos);
+      setLoading(false);
+      return;
+    }
+
+    // ─── 캐시 미스: API 호출 ─────────────────────────────
     const fetchGeckos = async () => {
       try {
-        if (!session?.user?.djangoToken) return;
-        const res = await apiClient(session.user.djangoToken).get(
-          "/api/geckos/",
-        );
-
+        const res = await apiClient(session.user.djangoToken!).get("/api/geckos/");
         if (!res.ok) throw new Error("Failed to fetch");
-
         const data: Gecko[] = await res.json();
-        setGeckos(data);
-
-        let fedCount = 0;
-        const todayStr = new Date().toISOString().split("T")[0];
-
-        data.forEach((g) => {
-          const todayFeeding = g.logs.find(
-            (l) => l.log_type === "Feeding" && l.log_date === todayStr,
-          );
-          if (todayFeeding) fedCount++;
-        });
-
-        setIsFedToday(data.length > 0 && fedCount > 0);
+        applyGeckos(data);
+        storeSetGeckos(data);
       } catch (error) {
         console.error("Failed to fetch geckos", error);
       } finally {
@@ -120,6 +130,7 @@ export default function Home() {
     };
 
     fetchGeckos();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, status]);
 
   const toggleDay = async (dayId: number) => {

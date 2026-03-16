@@ -4,10 +4,12 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { apiClient } from "@/lib/api";
 import { toast } from "sonner";
+import { useGeckoStore } from "@/app/stores/geckoStore";
 
 export default function DeleteButton({ id }: { id: number }) {
   const router = useRouter();
   const { data: session } = useSession(); // 👈 2. 세션 정보(토큰) 가져오기
+  const removeGecko = useGeckoStore((s) => s.removeGecko);
 
   const handleDelete = async () => {
     // 로그인 안 된 상태면 막기
@@ -33,9 +35,9 @@ export default function DeleteButton({ id }: { id: number }) {
         throw new Error("삭제 실패");
       }
 
+      removeGecko(id);
       toast.success("삭제되었습니다.");
-      router.push("/"); // 메인으로 이동
-      router.refresh();
+      router.push("/");
     } catch (error) {
       console.error(error);
       toast.error("삭제 중 오류가 발생했습니다.");
