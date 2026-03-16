@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { apiClient } from "@/lib/api";
+import { toast } from "sonner";
 
 export default function DeleteButton({ id }: { id: number }) {
   const router = useRouter();
@@ -11,7 +12,7 @@ export default function DeleteButton({ id }: { id: number }) {
   const handleDelete = async () => {
     // 로그인 안 된 상태면 막기
     if (!session?.user?.djangoToken) {
-      alert("로그인이 필요합니다.");
+      toast.error("로그인이 필요합니다.");
       return;
     }
 
@@ -32,12 +33,12 @@ export default function DeleteButton({ id }: { id: number }) {
         throw new Error("삭제 실패");
       }
 
-      alert("삭제되었습니다.");
+      toast.success("삭제되었습니다.");
       router.push("/"); // 메인으로 이동
       router.refresh();
     } catch (error) {
       console.error(error);
-      alert("삭제 중 오류가 발생했습니다.");
+      toast.error("삭제 중 오류가 발생했습니다.");
     }
   };
 

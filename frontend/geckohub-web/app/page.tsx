@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { Gecko } from "./types/gecko";
 import { apiClient } from "@/lib/api";
+import { toast } from "sonner";
 import LoginButton from "./components/LoginButton";
 import { IncubatorOverview } from "./components/incubator-overview";
 import { ThemeToggle } from "./components/theme-toggle";
@@ -132,7 +133,7 @@ export default function Home() {
       });
     } catch (error) {
       console.error("설정 저장 실패", error);
-      alert("설정 저장에 실패했습니다.");
+      toast.error("설정 저장에 실패했습니다.");
     }
   };
 
@@ -161,10 +162,10 @@ export default function Home() {
 
       await Promise.all(promises);
       setIsFedToday(true);
-      alert("모든 개체에게 피딩 기록이 추가되었습니다! 🦗");
+      toast.success("모든 개체에게 피딩 기록이 추가되었습니다! 🦗");
     } catch (error) {
       console.error(error);
-      alert("일부 요청이 실패했을 수 있습니다.");
+      toast.error("일부 요청이 실패했을 수 있습니다.");
     }
   };
 

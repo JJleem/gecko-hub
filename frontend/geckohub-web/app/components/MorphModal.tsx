@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { MORPH_LIST } from "../constants/morphs";
 import { Button } from "./ui/button"; // 경로가 다를 경우 "@/components/ui/button" 등으로 수정
 import { X, Dna, RotateCcw, Check } from "lucide-react";
@@ -42,7 +43,7 @@ export default function MorphModal({
     } else {
       // 선택 안됨 -> 추가 (최대 6개 제한)
       if (selected.length >= 6) {
-        alert("최대 6개까지만 선택할 수 있어요.");
+        toast.error("최대 6개까지만 선택할 수 있어요.");
         return;
       }
       setSelected([...selected, morph]);

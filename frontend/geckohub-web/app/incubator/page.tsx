@@ -12,6 +12,7 @@ import {
 import { calculateBreeding } from "@/app/utils/morphCalculator";
 import { getDday, getImageUrl } from "../utils/client-utils";
 import { apiClient } from "@/lib/api";
+import { toast } from "sonner";
 
 import {
   Dialog,
@@ -238,25 +239,25 @@ export default function IncubatorPage() {
   // 🔥 [추가] 삭제 버튼 클릭 핸들러
   const handleDeleteClick = async (id: number) => {
     if (!confirm("정말 이 알 기록을 삭제하시겠습니까?")) return;
-    if (!session?.user?.djangoToken) return alert("로그인이 필요합니다.");
+    if (!session?.user?.djangoToken) { toast.error("로그인이 필요합니다."); return; }
 
     try {
       const res = await apiClient(session.user.djangoToken).delete(`/api/logs/${id}/`);
 
       if (!res.ok) throw new Error("삭제 실패");
-      alert("삭제되었습니다.");
+      toast.success("삭제되었습니다.");
       fetchData();
     } catch (err) {
       console.error(err);
-      alert("삭제 중 오류가 발생했습니다.");
+      toast.error("삭제 중 오류가 발생했습니다.");
     }
   };
 
   // 등록 및 수정 처리
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!formData.motherId) return alert("어머니 개체를 선택해주세요.");
-    if (!session?.user?.djangoToken) return alert("로그인이 필요합니다.");
+    if (!formData.motherId) { toast.error("어머니 개체를 선택해주세요."); return; }
+    if (!session?.user?.djangoToken) { toast.error("로그인이 필요합니다."); return; }
 
     try {
       const payload = {
@@ -285,12 +286,12 @@ export default function IncubatorPage() {
 
       if (!res.ok) throw new Error("요청 실패");
 
-      alert(editingId ? "수정되었습니다! ✨" : "알이 등록되었습니다! 🥚");
+      toast.success(editingId ? "수정되었습니다! ✨" : "알이 등록되었습니다! 🥚");
       resetForm(); // 폼 초기화 및 모달 닫기
       fetchData(); // 목록 갱신
     } catch (err) {
       console.error(err);
-      alert("오류가 발생했습니다.");
+      toast.error("오류가 발생했습니다.");
     }
   };
 
