@@ -23,22 +23,24 @@ class CareLogSerializer(serializers.ModelSerializer):
 class GeckoSerializer(serializers.ModelSerializer):
     # logs를 커스텀 함수로 대체합니다.
     logs = serializers.SerializerMethodField()
-    
+
     sire_detail = ParentGeckoSerializer(source='sire', read_only=True)
     dam_detail = ParentGeckoSerializer(source='dam', read_only=True)
+    children = serializers.SerializerMethodField()
 
     class Meta:
         model = Gecko
         fields = [
-            'id', 'name', 'morph', 'gender', 'birth_date', 
-            'description', 'profile_image', 'created_at', 
-            'sire', 'dam', 
+            'id', 'name', 'morph', 'gender', 'birth_date',
+            'description', 'profile_image', 'created_at',
+            'sire', 'dam',
             'sire_detail', 'dam_detail',
             'sire_name', 'dam_name',
-            'logs', 
+            'logs',
+            'children',
             'is_ovulating',
             'tail_loss', 'mbd', 'has_spots',
-            'acquisition_type', 'acquisition_source', 
+            'acquisition_type', 'acquisition_source',
             'weight',
         ]
 
@@ -58,6 +60,18 @@ class GeckoSerializer(serializers.ModelSerializer):
             )
         
         return gecko
+
+    def get_children(self, obj):
+        # prefetch_related로 미리 로드된 역참조 쿼리셋 사용 (추가 DB 쿼리 없음)
+        from_sire = list(obj.sire_children.all())
+        from_dam = list(obj.dam_children.all())
+        seen = set()
+        unique = []
+        for c in from_sire + from_dam:
+            if c.id not in seen:
+                seen.add(c.id)
+                unique.append(c)
+        return ParentGeckoSerializer(unique, many=True).data
 
     # [로그 가져오기 함수]
     def get_logs(self, obj):

@@ -51,6 +51,7 @@ export interface Gecko {
   dam_name?: string;
   sire_detail?: ParentGecko;
   dam_detail?: ParentGecko;
+  children?: ParentGecko[];
 
   // 로그
   logs: CareLog[];

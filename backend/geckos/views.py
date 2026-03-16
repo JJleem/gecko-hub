@@ -9,9 +9,12 @@ from rest_framework.views import APIView
 
 def _gecko_queryset_with_prefetch():
     log_qs = CareLog.objects.select_related('partner', 'gecko')
+    child_qs = Gecko.objects.only('id', 'name', 'profile_image', 'morph', 'gender')
     return Gecko.objects.select_related('sire', 'dam').prefetch_related(
         Prefetch('logs', queryset=log_qs),
         Prefetch('mating_logs', queryset=log_qs),
+        Prefetch('sire_children', queryset=child_qs),
+        Prefetch('dam_children', queryset=child_qs),
     )
 
 class GeckoViewSet(viewsets.ModelViewSet):
