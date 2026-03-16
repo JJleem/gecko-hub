@@ -1,43 +1,39 @@
 from rest_framework import viewsets, permissions
 from .models import Gecko, CareLog
 from .serializers import GeckoSerializer, CareLogSerializer
-from rest_framework.permissions import IsAuthenticatedOrReadOnly, AllowAny
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
 from .models import UserSettings
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-# 게코 목록 조회, 생성, 수정, 삭제(CRUD)를 한방에 처리
-class GeckoViewSet(viewsets.ModelViewSet):
-    queryset = Gecko.objects.all().order_by('-created_at') # 최신순 정렬
-    serializer_class = GeckoSerializer
-
-# 사육 일지 CRUD
-class CareLogViewSet(viewsets.ModelViewSet):
-    queryset = CareLog.objects.all().order_by('-log_date')
-    serializer_class = CareLogSerializer
 
 class GeckoViewSet(viewsets.ModelViewSet):
     serializer_class = GeckoSerializer
-    # 로그인 안 해도 읽기(GET)는 가능, 쓰기/수정(POST/PUT)은 로그인 필수
-    permission_classes = [IsAuthenticatedOrReadOnly] 
-    
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
     def get_queryset(self):
-        print(f"👉 현재 요청 유저: {self.request.user} (로그인 여부: {self.request.user.is_authenticated})")
-        # 1. 상세 조회 (detail page) 요청일 때
-        # => id로 특정 개체를 찾는 것이므로, 내 것이 아니어도(전체 DB에서) 찾을 수 있게 해줍니다.
+        # 상세 조회(retrieve)는 전체 DB에서 탐색 (혈통 링크 지원)
         if self.action == 'retrieve':
             return Gecko.objects.all()
-            
-        # 2. 목록 조회 (list page) 요청일 때
-        # => 로그인한 사람은 '내 개체'만 모아보고, 비회원은 아무것도 안 보여줌
+
+        # 목록 조회는 내 개체만, 비회원은 빈 리스트
         if self.request.user.is_authenticated:
             return Gecko.objects.filter(user=self.request.user)
-        
-        # 비회원이 목록을 요청하면 빈 리스트 반환
         return Gecko.objects.none()
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+
+class CareLogViewSet(viewsets.ModelViewSet):
+    serializer_class = CareLogSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # 내 게코에 속한 로그만 접근 가능
+        return CareLog.objects.filter(
+            gecko__user=self.request.user
+        ).order_by('-log_date')
 
 class UserSettingsView(APIView):
     permission_classes = [permissions.IsAuthenticated] # 로그인 필수
