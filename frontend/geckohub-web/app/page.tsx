@@ -174,6 +174,14 @@ export default function Home() {
   };
 
   // 렌더링 시작
+  const eggCount = geckos
+    .filter((g) => g.gender === "Female")
+    .flatMap((g) =>
+      g.logs.filter(
+        (l) => l.log_type === "Laying" && !!l.expected_hatching_date,
+      ),
+    ).length;
+
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       <main className="container mx-auto p-4 md:p-8 pb-24 max-w-7xl">
@@ -229,8 +237,35 @@ export default function Home() {
               </Link>
             </div>
 
+            {/* 핵심 현황 통계 */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="bg-card rounded-xl border border-border/60 p-4 flex items-center gap-3 shadow-sm">
+                <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center text-xl flex-shrink-0">🦎</div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">{geckos.length}</p>
+                  <p className="text-xs text-muted-foreground font-medium">총 게코</p>
+                </div>
+              </div>
+              <div className="bg-card rounded-xl border border-border/60 p-4 flex items-center gap-3 shadow-sm">
+                <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center text-xl flex-shrink-0">🥚</div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">{eggCount}</p>
+                  <p className="text-xs text-muted-foreground font-medium">부화 중인 알</p>
+                </div>
+              </div>
+              <div className="bg-card rounded-xl border border-border/60 p-4 flex items-center gap-3 shadow-sm">
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0 ${isFedToday ? "bg-primary/10" : isFeedingDay ? "bg-orange-500/10" : "bg-muted/50"}`}>
+                  {isFedToday ? "✅" : isFeedingDay ? "🔔" : "💤"}
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-foreground leading-tight">{isFedToday ? "완료" : isFeedingDay ? "필요" : "쉬는 날"}</p>
+                  <p className="text-xs text-muted-foreground font-medium">오늘 피딩</p>
+                </div>
+              </div>
+            </div>
+
             {/* 상단 대시보드 위젯 영역 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 items-stretch">
               {/* 1. 피딩 스케줄러 위젯 */}
               <Card className="flex flex-col shadow-sm border-border/60 bg-card">
                 <CardHeader className="pb-3 flex flex-row items-center justify-between">
@@ -257,7 +292,7 @@ export default function Home() {
                           className={`w-9 h-9 rounded-full text-sm font-bold transition-all ${
                             feedingDays.includes(day.id)
                               ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md scale-105"
-                              : "bg-background border border-input text-muted-foreground hover:bg-muted"
+                              : "bg-muted text-foreground border border-border hover:bg-muted/80"
                           }`}
                           variant="outline"
                           size="icon"
@@ -319,10 +354,8 @@ export default function Home() {
                 </CardContent>
               </Card>
 
-              {/* 2. 인큐베이터 현황 (기존 컴포넌트 재사용) */}
-              <div className="h-full">
-                <IncubatorOverview />
-              </div>
+              {/* 2. 인큐베이터 현황 */}
+              <IncubatorOverview geckos={geckos} />
 
               {/* 3. 새 가족 등록 위젯 */}
               <Link href="/geckos/new" className="block h-full group">
