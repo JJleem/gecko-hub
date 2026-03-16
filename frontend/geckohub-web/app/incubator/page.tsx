@@ -51,7 +51,7 @@ interface EggLog {
 }
 
 export default function IncubatorPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
 
   const [eggs, setEggs] = useState<EggLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,10 +78,13 @@ export default function IncubatorPage() {
   });
 
   useEffect(() => {
+    if (status === "loading") return;
     if (session?.user?.djangoToken) {
       fetchData();
+    } else {
+      setLoading(false);
     }
-  }, [session]);
+  }, [session, status]);
 
   // 유전 계산기 로직
   useEffect(() => {

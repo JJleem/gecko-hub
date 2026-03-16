@@ -23,15 +23,18 @@ interface EggLog {
 }
 
 export function IncubatorOverview() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [eggs, setEggs] = useState<EggLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (status === "loading") return;
     if (session?.user?.djangoToken) {
       fetchEggs();
+    } else {
+      setLoading(false);
     }
-  }, [session]);
+  }, [session, status]);
 
   const fetchEggs = async () => {
     if (!session?.user?.djangoToken) return;
@@ -87,7 +90,7 @@ export function IncubatorOverview() {
   };
 
   if (loading) {
-    return <div className="text-center text-muted-foreground">로딩 중.d..</div>;
+    return <div className="text-center text-muted-foreground">로딩 중...</div>;
   }
 
   return (
