@@ -176,9 +176,7 @@ export default function Home() {
   // 렌더링 시작
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
-      {/* 헤더 영역 */}
-
-      <main className="container mx-auto p-4 md:p-8 pb-24">
+      <main className="container mx-auto p-4 md:p-8 pb-24 max-w-7xl">
         {status === "loading" || loading ? (
           /* 스켈레톤 로딩 UI */
           <div className="space-y-8 animate-pulse">
@@ -196,28 +194,45 @@ export default function Home() {
           </div>
         ) : !session ? (
           /* 비로그인 상태 UI */
-          <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
-            <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-              <ShieldAlert className="w-12 h-12 text-primary" />
+          <div className="flex flex-col items-center justify-center min-h-[65vh] text-center space-y-5">
+            <div className="w-20 h-20 bg-primary/10 rounded-2xl flex items-center justify-center mb-2 border border-primary/20">
+              <ShieldAlert className="w-10 h-10 text-primary" />
             </div>
-            <h2 className="text-3xl font-extrabold tracking-tight">
+            <h2 className="text-3xl font-bold tracking-tight">
               나만의 게코 관리 매니저
             </h2>
-            <p className="text-muted-foreground max-w-md text-lg">
-              사랑스러운 크레스티드 게코들의 피딩, 메이팅, 해칭 일정을
-              체계적으로 관리하세요.
+            <p className="text-muted-foreground max-w-sm text-base leading-relaxed">
+              크레스티드 게코들의 피딩, 메이팅, 해칭 일정을 한 곳에서 관리하세요.
             </p>
-            <div className="pt-4 pointer-events-none opacity-60 flex items-center gap-2 text-sm font-medium">
-              ⬆️ 우측 상단의 로그인 버튼을 눌러 시작하세요
-            </div>
+            <p className="text-sm text-muted-foreground/60 pt-2">
+              우측 상단의 로그인 버튼을 눌러 시작하세요
+            </p>
           </div>
         ) : (
           /* 로그인 완료 대시보드 UI */
           <div className="space-y-8 mt-2">
+
+            {/* 인사 영역 */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">
+                  안녕하세요 👋
+                </h1>
+                <p className="text-muted-foreground text-sm mt-0.5">
+                  오늘도 게코들이 잘 지내고 있나요?
+                </p>
+              </div>
+              <Link href="/geckos/new">
+                <Button variant="outline" size="sm" className="gap-1.5 border-primary/30 text-primary hover:bg-primary/5">
+                  <Plus className="w-4 h-4" /> 새 가족 등록
+                </Button>
+              </Link>
+            </div>
+
             {/* 상단 대시보드 위젯 영역 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {/* 1. 피딩 스케줄러 위젯 */}
-              <Card className="flex flex-col shadow-sm border-border/50">
+              <Card className="flex flex-col shadow-sm border-border/60 bg-card">
                 <CardHeader className="pb-3 flex flex-row items-center justify-between">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <CalendarCheck className="w-5 h-5 text-primary" /> 피딩
@@ -311,15 +326,15 @@ export default function Home() {
 
               {/* 3. 새 가족 등록 위젯 */}
               <Link href="/geckos/new" className="block h-full group">
-                <Card className="h-full flex flex-col items-center justify-center border-dashed border-2 hover:border-primary hover:bg-primary/5 transition-colors cursor-pointer shadow-none">
+                <Card className="h-full flex flex-col items-center justify-center border-dashed border-2 border-border/60 hover:border-primary/50 hover:bg-primary/5 transition-all duration-200 cursor-pointer shadow-none bg-card/50">
                   <CardContent className="flex flex-col items-center justify-center p-6 text-center">
-                    <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                      <Plus className="w-8 h-8 text-primary" />
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-primary/15 transition-all duration-200">
+                      <Plus className="w-6 h-6 text-primary" />
                     </div>
-                    <CardTitle className="text-lg font-bold mb-1 group-hover:text-primary transition-colors">
+                    <CardTitle className="text-base font-semibold mb-1 group-hover:text-primary transition-colors">
                       새 가족 등록
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="text-xs">
                       새로운 게코의 프로필을 추가하세요
                     </CardDescription>
                   </CardContent>
@@ -328,36 +343,43 @@ export default function Home() {
             </div>
 
             {/* 게코 목록 영역 */}
-            <div className="mt-10">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold tracking-tight">
-                  내 게코 목록{" "}
-                  <span className="text-muted-foreground text-lg font-normal ml-2">
-                    ({geckos.length}마리)
-                  </span>
-                </h2>
+            <div>
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h2 className="text-xl font-bold tracking-tight text-foreground">
+                    내 게코 목록
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    총 {geckos.length}마리 등록됨
+                  </p>
+                </div>
               </div>
 
               {geckos.length === 0 ? (
-                <div className="flex flex-col items-center justify-center p-12 text-center border rounded-xl bg-muted/20 border-dashed">
-                  <span className="text-5xl mb-4">🦎</span>
-                  <h3 className="text-lg font-bold">
-                    아직 등록된 게코가 없습니다.
+                <div className="flex flex-col items-center justify-center p-16 text-center border-2 border-dashed border-border/60 rounded-2xl bg-muted/10">
+                  <span className="text-6xl mb-4 opacity-40">🦎</span>
+                  <h3 className="text-base font-semibold text-foreground">
+                    아직 등록된 게코가 없습니다
                   </h3>
-                  <p className="text-muted-foreground mt-1">
-                    상단의 등록 위젯을 눌러 시작해보세요!
+                  <p className="text-sm text-muted-foreground mt-1 mb-4">
+                    첫 번째 게코를 등록해보세요!
                   </p>
+                  <Link href="/geckos/new">
+                    <Button size="sm" className="gap-1.5">
+                      <Plus className="w-4 h-4" /> 게코 등록하기
+                    </Button>
+                  </Link>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                   {geckos.map((gecko) => (
                     <Link
                       href={`/geckos/${gecko.id}`}
                       key={gecko.id}
                       className="group"
                     >
-                      <Card className="overflow-hidden border-border/50 hover:shadow-md hover:border-primary/30 transition-all duration-300 bg-card h-full flex flex-col">
-                        <div className="relative aspect-square w-full bg-muted">
+                      <Card className="overflow-hidden border-border/60 hover:shadow-lg hover:border-primary/25 hover:-translate-y-0.5 transition-all duration-300 bg-card h-full flex flex-col">
+                        <div className="relative aspect-[4/3] w-full bg-muted/60">
                           {gecko.profile_image ? (
                             <Image
                               src={gecko.profile_image}
@@ -367,13 +389,13 @@ export default function Home() {
                               unoptimized
                             />
                           ) : (
-                            <div className="flex items-center justify-center h-full text-5xl text-muted-foreground/30">
+                            <div className="flex items-center justify-center h-full text-5xl opacity-20">
                               🦎
                             </div>
                           )}
 
                           {/* 성별 뱃지 */}
-                          <div className="absolute top-3 right-3">
+                          <div className="absolute top-2.5 right-2.5">
                             <Badge
                               variant={
                                 gecko.gender === "Male"
@@ -382,7 +404,7 @@ export default function Home() {
                                     ? "destructive"
                                     : "secondary"
                               }
-                              className="shadow-sm font-bold backdrop-blur-md bg-opacity-90"
+                              className="shadow-sm font-semibold backdrop-blur-md text-xs"
                             >
                               {gecko.gender === "Male"
                                 ? "♂ 수컷"
@@ -394,28 +416,33 @@ export default function Home() {
 
                           {/* 배란 여부 인디케이터 */}
                           {gecko.is_ovulating && gecko.gender === "Female" && (
-                            <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-background/90 backdrop-blur-sm px-2.5 py-1 rounded-full border border-border shadow-sm">
-                              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-                              <span className="text-xs font-bold text-foreground">
+                            <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1.5 bg-background/90 backdrop-blur-sm px-2.5 py-1 rounded-full border border-border shadow-sm">
+                              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                              <span className="text-xs font-semibold text-foreground">
                                 배란중
                               </span>
                             </div>
                           )}
                         </div>
 
-                        <CardContent className="p-4 flex-1 flex flex-col">
-                          <h3 className="text-xl font-bold truncate group-hover:text-primary transition-colors">
-                            {gecko.name}
-                          </h3>
-                          <p className="text-sm text-muted-foreground truncate mb-4 font-medium">
-                            {gecko.morph || "모프 정보 없음"}
-                          </p>
-                          <div className="mt-auto flex items-center justify-between text-xs font-medium text-muted-foreground bg-muted/40 p-2.5 rounded-md border border-border/50">
-                            <span>🎂 {gecko.birth_date || "미상"}</span>
-                            <span>
-                              ⚖️{" "}
-                              {gecko.weight ? `${gecko.weight}g` : "무게 미상"}
-                            </span>
+                        <CardContent className="p-4 flex-1 flex flex-col gap-2">
+                          <div>
+                            <h3 className="text-base font-bold truncate group-hover:text-primary transition-colors">
+                              {gecko.name}
+                            </h3>
+                            <p className="text-xs text-muted-foreground truncate font-medium">
+                              {gecko.morph || "모프 정보 없음"}
+                            </p>
+                          </div>
+                          <div className="mt-auto grid grid-cols-2 gap-1.5 text-xs text-muted-foreground">
+                            <div className="bg-muted/50 rounded-md px-2 py-1.5 text-center">
+                              <span className="block font-medium text-foreground/70">{gecko.birth_date || "미상"}</span>
+                              <span className="text-[10px]">생년월일</span>
+                            </div>
+                            <div className="bg-muted/50 rounded-md px-2 py-1.5 text-center">
+                              <span className="block font-medium text-foreground/70">{gecko.weight ? `${gecko.weight}g` : "미상"}</span>
+                              <span className="text-[10px]">몸무게</span>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
