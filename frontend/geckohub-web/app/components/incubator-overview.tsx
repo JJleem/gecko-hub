@@ -110,7 +110,7 @@ export function IncubatorOverview({ geckos }: IncubatorOverviewProps) {
 
               return (
                 <Link
-                  href={`/incubator/${egg.id}`}
+                  href={`/incubator`}
                   key={egg.id}
                   className="flex items-center space-x-3 p-3 rounded-md hover:bg-muted/50 transition-colors"
                 >
