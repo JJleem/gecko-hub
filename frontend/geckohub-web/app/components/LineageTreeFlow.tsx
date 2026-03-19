@@ -5,31 +5,39 @@ import {
   ReactFlow,
   Background,
   Controls,
+  MiniMap,
   Node,
   Edge,
   Handle,
   Position,
   NodeProps,
   BackgroundVariant,
+  MarkerType,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useTheme } from "next-themes";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Gecko, ParentGecko } from "@/app/types/gecko";
+import { ExternalLink } from "lucide-react";
 
 // ── 레이아웃 상수 ──────────────────────────────────────
 const NODE_W = 160;
 const NODE_H = 175;
-const H_GAP = 60;
-const V_GAP = 80;
+const H_GAP  = 60;
+const V_GAP  = 90;
+
+// 자녀가 너무 많을 때 한 행에 보여줄 최대 수
+const MAX_CHILDREN_PER_ROW = 5;
 
 function getImageUrl(path: string | null): string {
   if (!path) return "";
-  return path.startsWith("http") ? path : `https://gecko-hub.vercel.app${path}`;
+  if (path.startsWith("http")) return path;
+  const base = process.env.NEXT_PUBLIC_API_URL ?? "";
+  return `${base}${path}`;
 }
 
-/** 행 내 노드의 x 좌표 계산 (행 전체가 x=0 기준 가운데 정렬) */
+/** 행 내 노드의 x 좌표 (가운데 정렬) */
 function rowX(index: number, count: number): number {
   const totalW = count * NODE_W + (count - 1) * H_GAP;
   return -totalW / 2 + index * (NODE_W + H_GAP);
@@ -45,27 +53,31 @@ type GeckoNodeData = Record<string, unknown> & {
   geckoId: number;
   isCurrent: boolean;
   isExternal?: boolean;
+  isClickable?: boolean;
 };
 
 // ── 커스텀 노드 컴포넌트 ──────────────────────────────
 function GeckoFlowNode({ data }: NodeProps) {
   const d = data as GeckoNodeData;
   const imageUrl = d.profile_image ? getImageUrl(d.profile_image as string) : null;
+  const isClickable = d.isClickable && !d.isCurrent && !d.isExternal;
 
   return (
     <div
-      className={`w-[160px] bg-card border-2 rounded-2xl p-3 flex flex-col items-center gap-1.5 shadow-md transition-all duration-200 ${
+      className={`w-[160px] bg-card border-2 rounded-2xl p-3 flex flex-col items-center gap-1.5 shadow-md transition-all duration-200 select-none ${
         d.isCurrent
-          ? "border-primary shadow-lg shadow-primary/10"
+          ? "border-primary shadow-lg shadow-primary/20 ring-2 ring-primary/20"
           : d.isExternal
-          ? "border-border/40"
-          : "border-border/60 hover:border-primary/50 hover:shadow-lg cursor-pointer"
+          ? "border-border/40 opacity-70"
+          : isClickable
+          ? "border-border/60 hover:border-primary/60 hover:shadow-lg hover:-translate-y-0.5 cursor-pointer"
+          : "border-border/60"
       }`}
     >
       <Handle
         type="target"
         position={Position.Top}
-        style={{ background: "transparent", border: "none", width: 8, height: 8 }}
+        style={{ background: "transparent", border: "none", width: 1, height: 1 }}
       />
 
       {/* 프로필 이미지 */}
@@ -108,12 +120,17 @@ function GeckoFlowNode({ data }: NodeProps) {
             외부
           </span>
         )}
+        {isClickable && (
+          <span className="text-[10px] text-primary/70 flex items-center justify-center gap-0.5 mt-1">
+            <ExternalLink className="w-2.5 h-2.5" /> 클릭하여 이동
+          </span>
+        )}
       </div>
 
       <Handle
         type="source"
         position={Position.Bottom}
-        style={{ background: "transparent", border: "none", width: 8, height: 8 }}
+        style={{ background: "transparent", border: "none", width: 1, height: 1 }}
       />
     </div>
   );
@@ -131,7 +148,7 @@ export default function LineageTreeFlow({ gecko }: { gecko: Gecko }) {
     const edges: Edge[] = [];
     const currentNodeId = `gecko-${gecko.id}`;
 
-    // ① 부모 목록 구성
+    // ① 부모 목록
     type ParentEntry = {
       gecko: ParentGecko | null;
       name?: string | null;
@@ -159,7 +176,7 @@ export default function LineageTreeFlow({ gecko }: { gecko: Gecko }) {
       });
     }
 
-    // ② 부모 노드 & 엣지 추가
+    // ② 부모 노드 & 엣지
     parents.forEach((p, i) => {
       const nodeId = p.gecko ? `gecko-${p.gecko.id}` : `ext-parent-${i}`;
       nodes.push({
@@ -175,6 +192,7 @@ export default function LineageTreeFlow({ gecko }: { gecko: Gecko }) {
           geckoId: p.gecko?.id ?? 0,
           isCurrent: false,
           isExternal: !p.gecko,
+          isClickable: !!p.gecko,
         },
       });
       edges.push({
@@ -182,6 +200,8 @@ export default function LineageTreeFlow({ gecko }: { gecko: Gecko }) {
         source: nodeId,
         target: currentNodeId,
         type: "smoothstep",
+        animated: true,
+        markerEnd: { type: MarkerType.ArrowClosed, color: p.edgeColor, width: 14, height: 14 },
         style: { stroke: p.edgeColor, strokeWidth: 2, opacity: 0.7 },
       });
     });
@@ -196,39 +216,51 @@ export default function LineageTreeFlow({ gecko }: { gecko: Gecko }) {
         name: gecko.name,
         morph: gecko.morph,
         profile_image: gecko.profile_image,
-        role: "본인",
+        role: "현재",
         roleColor: "text-primary",
         geckoId: gecko.id,
         isCurrent: true,
+        isClickable: false,
       },
     });
 
-    // ④ 자녀 노드 & 엣지 추가
+    // ④ 자녀 노드 — 최대 MAX_CHILDREN_PER_ROW씩 행 분할
     const children = gecko.children ?? [];
     if (children.length > 0) {
-      const childY = currentY + NODE_H + V_GAP;
-      children.forEach((child, i) => {
-        const childNodeId = `child-${child.id}`;
-        nodes.push({
-          id: childNodeId,
-          type: "geckoNode",
-          position: { x: rowX(i, children.length), y: childY },
-          data: {
-            name: child.name,
-            morph: child.morph,
-            profile_image: child.profile_image,
-            role: "자손",
-            roleColor: "text-emerald-500",
-            geckoId: child.id,
-            isCurrent: false,
-          },
-        });
-        edges.push({
-          id: `${currentNodeId}->${childNodeId}`,
-          source: currentNodeId,
-          target: childNodeId,
-          type: "smoothstep",
-          style: { stroke: "#10b981", strokeWidth: 2, opacity: 0.7 },
+      // 자녀를 행으로 나눔
+      const rows: ParentGecko[][] = [];
+      for (let i = 0; i < children.length; i += MAX_CHILDREN_PER_ROW) {
+        rows.push(children.slice(i, i + MAX_CHILDREN_PER_ROW));
+      }
+
+      rows.forEach((rowChildren, rowIdx) => {
+        const rowY = currentY + NODE_H + V_GAP + rowIdx * (NODE_H + V_GAP / 2);
+        rowChildren.forEach((child, colIdx) => {
+          const childNodeId = `child-${child.id}`;
+          nodes.push({
+            id: childNodeId,
+            type: "geckoNode",
+            position: { x: rowX(colIdx, rowChildren.length), y: rowY },
+            data: {
+              name: child.name,
+              morph: child.morph,
+              profile_image: child.profile_image,
+              role: "자손",
+              roleColor: "text-emerald-500",
+              geckoId: child.id,
+              isCurrent: false,
+              isClickable: true,
+            },
+          });
+          edges.push({
+            id: `${currentNodeId}->${childNodeId}`,
+            source: currentNodeId,
+            target: childNodeId,
+            type: "smoothstep",
+            animated: true,
+            markerEnd: { type: MarkerType.ArrowClosed, color: "#10b981", width: 14, height: 14 },
+            style: { stroke: "#10b981", strokeWidth: 2, opacity: 0.7 },
+          });
         });
       });
     }
@@ -236,7 +268,7 @@ export default function LineageTreeFlow({ gecko }: { gecko: Gecko }) {
     return { nodes, edges };
   }, [gecko]);
 
-  // 노드 클릭 시 해당 게코 페이지로 이동
+  // 노드 클릭 → 해당 게코 페이지 이동
   const handleNodeClick = (_: React.MouseEvent, node: Node) => {
     const d = node.data as GeckoNodeData;
     if (!d.isCurrent && !d.isExternal && d.geckoId) {
@@ -244,40 +276,56 @@ export default function LineageTreeFlow({ gecko }: { gecko: Gecko }) {
     }
   };
 
-  const isEmpty = nodes.length <= 1 && (gecko.children ?? []).length === 0
-    && !gecko.sire_detail && !gecko.sire_name
-    && !gecko.dam_detail && !gecko.dam_name;
+  const isEmpty =
+    nodes.length <= 1 &&
+    (gecko.children ?? []).length === 0 &&
+    !gecko.sire_detail && !gecko.sire_name &&
+    !gecko.dam_detail && !gecko.dam_name;
 
   if (isEmpty) {
     return (
       <div className="flex flex-col items-center py-16 text-center gap-3">
         <span className="text-5xl opacity-20">🦎</span>
-        <p className="text-sm text-muted-foreground">등록된 혈통 정보가 없습니다.</p>
+        <p className="text-sm font-medium text-foreground">등록된 혈통 정보가 없어요</p>
+        <p className="text-xs text-muted-foreground">부모 혈통을 등록하면 트리가 나타나요</p>
         <a
           href={`/geckos/${gecko.id}/edit`}
-          className="text-sm text-primary hover:underline"
+          className="text-sm text-primary hover:underline flex items-center gap-1 mt-1"
         >
-          정보 수정에서 부모 혈통을 등록해보세요
+          <ExternalLink className="w-3.5 h-3.5" /> 정보 수정에서 등록하기
         </a>
       </div>
     );
   }
 
+  // 자녀 수에 따라 높이 동적 계산
+  const childRows = Math.ceil((gecko.children ?? []).length / MAX_CHILDREN_PER_ROW);
+  const dynamicHeight = Math.min(
+    Math.max(420, 300 + childRows * (NODE_H + V_GAP / 2)),
+    700,
+  );
+
+  const showMinimap = nodes.length >= 5;
+
   return (
-    <div className="w-full h-[520px] rounded-xl overflow-hidden border border-border/50">
+    <div
+      className="w-full rounded-xl overflow-hidden border border-border/50"
+      style={{ height: dynamicHeight }}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
         onNodeClick={handleNodeClick}
         fitView
-        fitViewOptions={{ padding: 0.35, maxZoom: 1.2 }}
-        minZoom={0.3}
+        fitViewOptions={{ padding: 0.3, maxZoom: 1.1 }}
+        minZoom={0.2}
         maxZoom={2}
         nodesDraggable={false}
         nodesConnectable={false}
         elementsSelectable={false}
         colorMode={resolvedTheme === "dark" ? "dark" : "light"}
+        proOptions={{ hideAttribution: true }}
       >
         <Background
           variant={BackgroundVariant.Dots}
@@ -286,6 +334,14 @@ export default function LineageTreeFlow({ gecko }: { gecko: Gecko }) {
           color={resolvedTheme === "dark" ? "#334155" : "#cbd5e1"}
         />
         <Controls showInteractive={false} />
+        {showMinimap && (
+          <MiniMap
+            nodeStrokeWidth={3}
+            zoomable
+            pannable
+            className="!bg-background/80 !border-border/50 rounded-lg"
+          />
+        )}
       </ReactFlow>
     </div>
   );
