@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Gecko } from "@/app/types/gecko";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
@@ -26,6 +27,20 @@ import {
   Info,
 } from "lucide-react";
 
+// 사육일지 필터 타입
+type LogFilter = "All" | "Feeding" | "Weight" | "Mating" | "Laying" | "Shedding" | "Cleaning" | "Etc";
+
+const LOG_FILTERS: { type: LogFilter; label: string }[] = [
+  { type: "All",      label: "전체" },
+  { type: "Feeding",  label: "🦗 피딩" },
+  { type: "Weight",   label: "⚖️ 체중" },
+  { type: "Mating",   label: "💞 메이팅" },
+  { type: "Laying",   label: "🥚 산란" },
+  { type: "Shedding", label: "🐍 탈피" },
+  { type: "Cleaning", label: "🧹 청소" },
+  { type: "Etc",      label: "📝 기타" },
+];
+
 import WeightChart from "@/app/components/WeightChart";
 import MatingTracker from "@/app/components/MatingTracker";
 import EggTracker from "@/app/components/EggTracker";
@@ -40,6 +55,12 @@ export default function GeckoDetailTabs({
   gecko: Gecko;
   onRefresh?: () => void;
 }) {
+  const [logFilter, setLogFilter] = useState<LogFilter>("All");
+
+  const filteredLogs = logFilter === "All"
+    ? gecko.logs
+    : gecko.logs.filter((l) => l.log_type === logFilter);
+
   const activeEggs = gecko.logs
     .filter(
       (l) =>
@@ -171,16 +192,56 @@ export default function GeckoDetailTabs({
         {/* 사육 일지 */}
         <Card className="shadow-sm border-border/60 overflow-hidden">
           <CardHeader className="bg-background border-b border-border/50 pb-4">
-            <CardTitle className="flex items-center gap-2 font-black text-xl">
-              <Activity className="w-6 h-6 text-primary" /> 사육 일지 (Care Logs)
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 font-black text-xl">
+                <Activity className="w-6 h-6 text-primary" /> 사육 일지 (Care Logs)
+              </CardTitle>
+              <span className="text-xs text-muted-foreground">
+                {filteredLogs.length}
+                {logFilter !== "All" && `/${gecko.logs.length}`}건
+              </span>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             <div className="p-6 bg-muted/10 border-b border-border/50">
               <LogForm geckoId={gecko.id} currentGender={gecko.gender} onSuccess={onRefresh} />
             </div>
+
+            {/* 타입 필터 바 */}
+            <div className="px-6 py-3 border-b border-border/50 bg-background overflow-x-auto">
+              <div className="flex gap-1.5 min-w-max">
+                {LOG_FILTERS.map(({ type, label }) => (
+                  <button
+                    key={type}
+                    onClick={() => setLogFilter(type)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                      logFilter === type
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground border border-border/50"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="p-6 bg-background">
               {gecko.logs && gecko.logs.length > 0 ? (
+                filteredLogs.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed border-border/60 rounded-2xl">
+                    <FileText className="w-10 h-10 text-muted-foreground/20 mb-3" />
+                    <p className="text-sm text-muted-foreground font-medium">
+                      해당 종류의 기록이 없어요
+                    </p>
+                    <button
+                      onClick={() => setLogFilter("All")}
+                      className="mt-2 text-xs text-primary hover:underline"
+                    >
+                      전체 보기
+                    </button>
+                  </div>
+                ) : (
                 <div className="rounded-xl border border-border/50 overflow-hidden shadow-sm">
                   <Table>
                     <TableHeader className="bg-muted/30">
@@ -200,7 +261,7 @@ export default function GeckoDetailTabs({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {gecko.logs.map((log) => (
+                      {filteredLogs.map((log) => (
                         <TableRow
                           key={log.id}
                           className="hover:bg-muted/20 transition-colors"
@@ -305,6 +366,7 @@ export default function GeckoDetailTabs({
                     </TableBody>
                   </Table>
                 </div>
+                )
               ) : (
                 <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-border/60 rounded-2xl">
                   <FileText className="w-12 h-12 text-muted-foreground/20 mb-3" />
