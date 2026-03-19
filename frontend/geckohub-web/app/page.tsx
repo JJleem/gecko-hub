@@ -26,8 +26,11 @@ import {
   CheckCircle2,
   Clock,
   Plus,
+  Search,
   Settings2,
   ShieldAlert,
+  SlidersHorizontal,
+  X,
 } from "lucide-react";
 
 const DAYS = [
@@ -44,6 +47,8 @@ export default function Home() {
   const { data: session, status } = useSession();
   const [geckos, setGeckos] = useState<Gecko[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [genderFilter, setGenderFilter] = useState<"All" | "Male" | "Female">("All");
 
   const {
     geckos: cachedGeckos,
@@ -183,6 +188,17 @@ export default function Home() {
       toast.error("일부 요청이 실패했을 수 있습니다.");
     }
   };
+
+  // 필터된 게코 목록
+  const filteredGeckos = geckos.filter((g) => {
+    const matchesSearch =
+      searchQuery === "" ||
+      g.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (g.morph && g.morph.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesGender =
+      genderFilter === "All" || g.gender === genderFilter;
+    return matchesSearch && matchesGender;
+  });
 
   // 렌더링 시작
   const eggCount = geckos
@@ -388,16 +404,64 @@ export default function Home() {
 
             {/* 게코 목록 영역 */}
             <div>
-              <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-xl font-bold tracking-tight text-foreground">
                     내 게코 목록
                   </h2>
                   <p className="text-sm text-muted-foreground mt-0.5">
                     총 {geckos.length}마리 등록됨
+                    {filteredGeckos.length !== geckos.length && (
+                      <span className="ml-1.5 text-primary font-medium">
+                        ({filteredGeckos.length}마리 표시 중)
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
+
+              {/* 검색 + 필터 바 */}
+              {geckos.length > 0 && (
+                <div className="flex flex-col sm:flex-row gap-3 mb-5">
+                  {/* 검색창 */}
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="이름 또는 모프로 검색..."
+                      className="w-full pl-9 pr-8 py-2.5 text-sm rounded-xl border border-border/60 bg-muted/30 placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery("")}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* 성별 필터 */}
+                  <div className="flex items-center gap-1.5">
+                    <SlidersHorizontal className="w-4 h-4 text-muted-foreground shrink-0" />
+                    {(["All", "Male", "Female"] as const).map((g) => (
+                      <button
+                        key={g}
+                        onClick={() => setGenderFilter(g)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                          genderFilter === g
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "bg-muted/40 text-muted-foreground hover:bg-muted/70 hover:text-foreground border border-border/50"
+                        }`}
+                      >
+                        {g === "All" ? "전체" : g === "Male" ? "♂ 수컷" : "♀ 암컷"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {geckos.length === 0 ? (
                 <div className="flex flex-col items-center justify-center p-16 text-center border-2 border-dashed border-border/60 rounded-2xl bg-muted/10">
@@ -414,9 +478,23 @@ export default function Home() {
                     </Button>
                   </Link>
                 </div>
+              ) : filteredGeckos.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-14 text-center border border-dashed border-border/60 rounded-2xl bg-muted/10">
+                  <Search className="w-9 h-9 mb-3 text-muted-foreground/40" />
+                  <p className="text-sm font-medium text-foreground">검색 결과가 없어요</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    다른 이름이나 모프로 검색해보세요
+                  </p>
+                  <button
+                    onClick={() => { setSearchQuery(""); setGenderFilter("All"); }}
+                    className="mt-3 text-xs text-primary hover:underline"
+                  >
+                    필터 초기화
+                  </button>
+                </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                  {geckos.map((gecko) => (
+                  {filteredGeckos.map((gecko) => (
                     <Link
                       href={`/geckos/${gecko.id}`}
                       key={gecko.id}

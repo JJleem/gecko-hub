@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { MORPH_LIST } from "../constants/morphs";
-import { Button } from "./ui/button"; // 경로가 다를 경우 "@/components/ui/button" 등으로 수정
+import { Button } from "./ui/button";
 import { X, Dna, RotateCcw, Check } from "lucide-react";
 
 interface MorphModalProps {
@@ -11,6 +11,8 @@ interface MorphModalProps {
   onClose: () => void;
   onApply: (selected: string) => void;
   initialSelected: string; // "릴리화이트, 아잔틱" 형태의 문자열
+  /** 커스텀 모프 리스트. 미전달 시 전체 MORPH_LIST 사용 */
+  morphList?: string[];
 }
 
 export default function MorphModal({
@@ -18,6 +20,7 @@ export default function MorphModal({
   onClose,
   onApply,
   initialSelected,
+  morphList = MORPH_LIST,
 }: MorphModalProps) {
   const [selected, setSelected] = useState<string[]>([]);
 
@@ -92,7 +95,7 @@ export default function MorphModal({
         {/* 모프 리스트 영역 (스크롤) */}
         <div className="p-6 overflow-y-auto flex-1">
           <div className="flex flex-wrap gap-2.5">
-            {MORPH_LIST.map((morph) => {
+            {morphList.map((morph) => {
               const isSelected = selected.includes(morph);
               return (
                 <button
