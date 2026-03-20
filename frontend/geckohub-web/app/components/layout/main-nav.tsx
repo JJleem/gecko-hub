@@ -27,18 +27,18 @@ export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-card/90 backdrop-blur-md shadow-sm">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-card/80 backdrop-blur-xl">
+      <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4 max-w-7xl">
 
         {/* Logo */}
         <Link
           href="/"
-          className="flex items-center gap-2 hover:opacity-80 transition-opacity shrink-0"
+          className="flex items-center gap-2.5 hover:opacity-80 transition-opacity shrink-0"
         >
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+          <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shadow-sm">
             <Leaf className="w-4 h-4 text-primary-foreground" />
           </div>
-          <span className="text-xl font-bold tracking-tight text-foreground">
+          <span className="text-[18px] font-extrabold tracking-tight text-foreground">
             Gecko<span className="text-primary">Hub</span>
           </span>
         </Link>
@@ -51,13 +51,13 @@ export function Header() {
               <Link
                 key={href}
                 href={href}
-                className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
+                className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 ${
                   isActive
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    ? "bg-primary/12 text-primary"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                 }`}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className="w-3.5 h-3.5" />
                 {label}
               </Link>
             );
@@ -85,9 +85,9 @@ export function Header() {
       {/* 모바일 슬라이드 메뉴 */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent side="left" className="w-72 p-0">
-          <SheetHeader className="px-6 py-5 border-b border-border/50">
+          <SheetHeader className="px-6 py-5 border-b border-border/40">
             <SheetTitle className="text-left">
-              <span className="font-bold text-lg">🦎 GeckoHub</span>
+              <span className="font-extrabold text-lg">🦎 GeckoHub</span>
             </SheetTitle>
           </SheetHeader>
           <nav className="flex flex-col gap-1 px-3 py-4">
@@ -97,10 +97,10 @@ export function Header() {
                 <SheetClose key={href} asChild>
                   <Link
                     href={href}
-                    className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
+                    className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition-colors ${
                       isActive
                         ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                     }`}
                   >
                     <Icon className="w-5 h-5 shrink-0" />

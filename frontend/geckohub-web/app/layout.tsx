@@ -1,7 +1,7 @@
 // app/layout.tsx
 import "./globals.css";
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Nunito } from "next/font/google";
 import Providers from "./components/Provider";
 
 import { ThemeToggle } from "./components/theme-toggle";
@@ -10,7 +10,11 @@ import { Toaster } from "./components/ui/sonner";
 import { Header } from "./components/layout/main-nav";
 import { Footer } from "./components/layout/footer";
 
-const inter = Inter({ subsets: ["latin"] });
+const nunito = Nunito({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-nunito",
+});
 
 export const metadata: Metadata = {
   title: "GeckoHub",
@@ -24,7 +28,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={`${nunito.variable} font-[family-name:var(--font-nunito)]`}>
         <Providers>
           <div className="relative flex min-h-screen flex-col">
             <Header />
