@@ -26,6 +26,7 @@ import {
   XCircle,
   HelpCircle,
 } from "lucide-react";
+import { getImageUrl } from "../utils/client-utils";
 
 export default function MatingTracker({
   logs,
@@ -39,14 +40,6 @@ export default function MatingTracker({
     .sort(
       (a, b) => new Date(b.log_date).getTime() - new Date(a.log_date).getTime(),
     );
-
-  // 🛠 [핵심 함수] 이미지 주소 변환 (엑박 방지)
-  const getFullImageUrl = (path: string | null): string => {
-    if (!path) return "";
-    return path.startsWith("http")
-      ? path
-      : `https://gecko-hub.vercel.app${path}`;
-  };
 
   return (
     <Card className="h-full shadow-sm border-border/50">
@@ -91,7 +84,7 @@ export default function MatingTracker({
                   }
 
                   const imageUrl = otherGecko
-                    ? getFullImageUrl(otherGecko.profile_image)
+                    ? getImageUrl(otherGecko.profile_image)
                     : "";
 
                   return (
