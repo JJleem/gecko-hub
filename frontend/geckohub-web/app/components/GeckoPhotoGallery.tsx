@@ -4,18 +4,24 @@ import { useRef, useState } from "react";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { Plus, Trash2, Star } from "lucide-react";
+import { Plus, Trash2, Star, Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { Gecko, GeckoPhoto } from "@/app/types/gecko";
 
 const MAX_EXTRA = 3;
 
+function Spinner({ className = "" }: { className?: string }) {
+  return <Loader2 className={`animate-spin ${className}`} />;
+}
+
 export default function GeckoPhotoGallery({
   gecko,
   onRefresh,
+  onMainImageLoading,
 }: {
   gecko: Gecko;
   onRefresh?: () => void;
+  onMainImageLoading?: (loading: boolean) => void;
 }) {
   const { data: session } = useSession();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -25,6 +31,7 @@ export default function GeckoPhotoGallery({
 
   const photos: GeckoPhoto[] = gecko.photos ?? [];
   const canUpload = photos.length < MAX_EXTRA;
+  const isBusy = uploading || deletingId !== null || settingPrimaryId !== null;
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -65,6 +72,7 @@ export default function GeckoPhotoGallery({
   const handleSetPrimary = async (photoId: number) => {
     if (!session?.user?.djangoToken) return;
     setSettingPrimaryId(photoId);
+    onMainImageLoading?.(true);
     try {
       const res = await apiClient(session.user.djangoToken).post(
         `/api/photos/${photoId}/set_primary/`,
@@ -77,56 +85,88 @@ export default function GeckoPhotoGallery({
       toast.error("변경 실패");
     } finally {
       setSettingPrimaryId(null);
+      onMainImageLoading?.(false);
     }
   };
 
   return (
-    <div className="flex gap-2 mt-3">
+    <div className="flex gap-2">
       {/* 추가 사진 썸네일 */}
-      {photos.map((photo) => (
-        <div
-          key={photo.id}
-          className="relative group w-16 h-16 rounded-xl overflow-hidden border-2 border-border/50 bg-muted flex-shrink-0 cursor-pointer hover:border-primary/60 transition-all"
-        >
-          <Image
-            src={photo.image}
-            alt="추가 사진"
-            fill
-            className="object-cover"
-            unoptimized
-          />
-          {/* hover 오버레이 */}
-          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1">
-            <button
-              onClick={() => handleSetPrimary(photo.id)}
-              disabled={settingPrimaryId === photo.id}
-              className="p-1 rounded-full bg-white/20 hover:bg-yellow-400/80 transition-colors"
-              title="대표사진으로 설정"
-            >
-              <Star className="w-3 h-3 text-white" />
-            </button>
-            <button
-              onClick={() => handleDelete(photo.id)}
-              disabled={deletingId === photo.id}
-              className="p-1 rounded-full bg-white/20 hover:bg-red-500/80 transition-colors"
-              title="삭제"
-            >
-              <Trash2 className="w-3 h-3 text-white" />
-            </button>
+      {photos.map((photo) => {
+        const isDeleting = deletingId === photo.id;
+        const isSettingPrimary = settingPrimaryId === photo.id;
+        const isThisBusy = isDeleting || isSettingPrimary;
+
+        return (
+          <div
+            key={photo.id}
+            className={`relative group w-16 h-16 rounded-xl overflow-hidden border-2 bg-muted flex-shrink-0 transition-all duration-200 ${
+              isThisBusy
+                ? "border-primary/60 scale-95 opacity-80"
+                : "border-border/50 hover:border-primary/60 cursor-pointer"
+            }`}
+          >
+            <Image
+              src={photo.image}
+              alt="추가 사진"
+              fill
+              className={`object-cover transition-all duration-300 ${isThisBusy ? "blur-[1px]" : ""}`}
+              unoptimized
+            />
+
+            {/* 로딩 오버레이 */}
+            {isThisBusy && (
+              <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-1">
+                <Spinner className="w-4 h-4 text-white" />
+                <span className="text-[9px] text-white font-medium">
+                  {isDeleting ? "삭제중" : "변경중"}
+                </span>
+              </div>
+            )}
+
+            {/* hover 액션 오버레이 (busy 아닐 때만) */}
+            {!isThisBusy && (
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5">
+                <button
+                  onClick={() => handleSetPrimary(photo.id)}
+                  disabled={isBusy}
+                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-yellow-400/90 hover:bg-yellow-300 transition-colors"
+                  title="대표사진으로"
+                >
+                  <Star className="w-2.5 h-2.5 text-yellow-900" />
+                  <span className="text-[9px] font-bold text-yellow-900">대표</span>
+                </button>
+                <button
+                  onClick={() => handleDelete(photo.id)}
+                  disabled={isBusy}
+                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-red-500/90 hover:bg-red-400 transition-colors"
+                  title="삭제"
+                >
+                  <Trash2 className="w-2.5 h-2.5 text-white" />
+                  <span className="text-[9px] font-bold text-white">삭제</span>
+                </button>
+              </div>
+            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       {/* 업로드 슬롯 */}
       {canUpload && (
         <button
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          className="w-16 h-16 rounded-xl border-2 border-dashed border-border/60 bg-muted/40 flex flex-col items-center justify-center gap-0.5 hover:border-primary/50 hover:bg-primary/5 transition-all flex-shrink-0 disabled:opacity-50"
-          title="사진 추가"
+          onClick={() => !isBusy && fileInputRef.current?.click()}
+          disabled={isBusy}
+          className={`w-16 h-16 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-0.5 transition-all flex-shrink-0 ${
+            uploading
+              ? "border-primary/50 bg-primary/5"
+              : "border-border/60 bg-muted/40 hover:border-primary/50 hover:bg-primary/5 disabled:opacity-40 disabled:cursor-not-allowed"
+          }`}
         >
           {uploading ? (
-            <span className="text-[10px] text-muted-foreground">업로드중</span>
+            <>
+              <Spinner className="w-4 h-4 text-primary" />
+              <span className="text-[9px] text-primary font-medium">업로드중</span>
+            </>
           ) : (
             <>
               <Plus className="w-4 h-4 text-muted-foreground" />

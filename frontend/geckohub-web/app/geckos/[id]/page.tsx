@@ -21,6 +21,7 @@ import {
   CalendarDays,
   Edit,
   FileText,
+  Loader2,
   Scale,
 } from "lucide-react";
 
@@ -33,6 +34,7 @@ export default function GeckoDetail() {
 
   const [gecko, setGecko] = useState<Gecko | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mainImageLoading, setMainImageLoading] = useState(false);
 
   const fetchGecko = useCallback(
     async (silent = false) => {
@@ -151,6 +153,14 @@ export default function GeckoDetail() {
                 <span className="text-sm font-bold tracking-widest uppercase">No Image</span>
               </div>
             )}
+            {/* 대표사진 변경 중 오버레이 */}
+            {mainImageLoading && (
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 z-10">
+                <Loader2 className="w-8 h-8 text-white animate-spin" />
+                <span className="text-white text-sm font-semibold">대표사진 변경 중...</span>
+              </div>
+            )}
+
             {gecko.is_ovulating && (
               <div className="absolute top-4 right-4">
                 {gecko.gender === "Female" ? (
@@ -165,7 +175,11 @@ export default function GeckoDetail() {
               </div>
             )}
           </div>
-            <GeckoPhotoGallery gecko={gecko} onRefresh={() => fetchGecko(false)} />
+            <GeckoPhotoGallery
+              gecko={gecko}
+              onRefresh={() => fetchGecko(false)}
+              onMainImageLoading={setMainImageLoading}
+            />
           </div>
 
           {/* 주요 정보 */}
