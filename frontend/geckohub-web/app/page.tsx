@@ -82,7 +82,7 @@ export default function Home() {
 
   // 피딩 노트 패널 상태
   const [feedOpenId, setFeedOpenId] = useState<number | null>(null);
-  const [feedChoices, setFeedChoices] = useState<Set<string>>(new Set());
+  const [feedChoices, setFeedChoices] = useState<string[]>([]);
   const [feedCustomText, setFeedCustomText] = useState("");
   const [feedRemember, setFeedRemember] = useState(false);
   const [feedSubmitting, setFeedSubmitting] = useState(false);
@@ -227,21 +227,19 @@ export default function Home() {
       setFeedOpenId(null);
       return;
     }
-    // localStorage에서 기억된 선택 불러오기
+    // localStorage에서 기억된 선택 불러오기 (체크박스는 항상 false로 리셋)
     try {
       const saved = localStorage.getItem(FEED_REMEMBER_KEY);
       if (saved) {
         const parsed: string[] = JSON.parse(saved);
-        setFeedChoices(new Set(parsed));
-        setFeedRemember(true);
+        setFeedChoices(parsed);
       } else {
-        setFeedChoices(new Set());
-        setFeedRemember(false);
+        setFeedChoices([]);
       }
     } catch {
-      setFeedChoices(new Set());
-      setFeedRemember(false);
+      setFeedChoices([]);
     }
+    setFeedRemember(false);
     setFeedCustomText("");
     setWeightOpenId(null);
     setFeedOpenId(geckoId);
@@ -255,23 +253,19 @@ export default function Home() {
 
     let note: string | undefined;
     if (!skip) {
-      const parts: string[] = [];
-      feedChoices.forEach((c) => {
-        if (c === "직접입력") {
-          if (feedCustomText.trim()) parts.push(feedCustomText.trim());
-        } else {
-          parts.push(c);
-        }
+      const parts: string[] = feedChoices.flatMap((c) => {
+        if (c === "직접입력") return feedCustomText.trim() ? [feedCustomText.trim()] : [];
+        return [c];
       });
       if (parts.length > 0) note = parts.join(", ");
     }
 
-    // 기억하기 처리
-    if (!skip && feedRemember && feedChoices.size > 0) {
-      const toSave = [...feedChoices].filter((c) => c !== "직접입력");
+    // 기억하기 처리 (체크한 경우만 저장, 아니면 항상 클리어)
+    if (!skip && feedRemember) {
+      const toSave = feedChoices.filter((c) => c !== "직접입력");
       if (toSave.length > 0) localStorage.setItem(FEED_REMEMBER_KEY, JSON.stringify(toSave));
       else localStorage.removeItem(FEED_REMEMBER_KEY);
-    } else if (!feedRemember) {
+    } else {
       localStorage.removeItem(FEED_REMEMBER_KEY);
     }
 
@@ -758,16 +752,16 @@ export default function Home() {
                                 {FEED_TYPES.map((ft) => (
                                   <button
                                     key={ft.id}
+                                    type="button"
                                     onClick={() => {
-                                      setFeedChoices((prev) => {
-                                        const next = new Set(prev);
-                                        if (next.has(ft.id)) next.delete(ft.id);
-                                        else next.add(ft.id);
-                                        return next;
-                                      });
+                                      setFeedChoices((prev) =>
+                                        prev.includes(ft.id)
+                                          ? prev.filter((c) => c !== ft.id)
+                                          : [...prev, ft.id]
+                                      );
                                     }}
                                     className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-all border ${
-                                      feedChoices.has(ft.id)
+                                      feedChoices.includes(ft.id)
                                         ? "bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/40"
                                         : "bg-background text-muted-foreground border-border/60 hover:border-green-500/40 hover:text-green-600"
                                     }`}
@@ -778,7 +772,7 @@ export default function Home() {
                               </div>
 
                               {/* 직접입력 텍스트 */}
-                              {feedChoices.has("직접입력") && (
+                              {feedChoices.includes("직접입력") && (
                                 <input
                                   type="text"
                                   value={feedCustomText}
