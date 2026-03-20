@@ -168,6 +168,66 @@ export function GeckoShareCard({ gecko, imageBase64 }: Props) {
           ))}
         </div>
 
+        {/* 출처 + 혈통 정보 */}
+        <div style={{ display: "flex", gap: "8px", marginTop: "12px", flexWrap: "wrap" }}>
+          {/* 출처 */}
+          {gecko.acquisition_type && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+                background: gecko.acquisition_type === "Hatched"
+                  ? "#f0fdf4"
+                  : gecko.acquisition_type === "Purchased"
+                  ? "#fffbeb"
+                  : "#f0f9ff",
+                border: `1px solid ${gecko.acquisition_type === "Hatched" ? "#bbf7d0" : gecko.acquisition_type === "Purchased" ? "#fde68a" : "#bae6fd"}`,
+                borderRadius: "14px",
+                padding: "7px 12px",
+              }}
+            >
+              <span style={{ fontSize: "13px" }}>
+                {gecko.acquisition_type === "Hatched" ? "🥚" : gecko.acquisition_type === "Purchased" ? "🏪" : "🫶"}
+              </span>
+              <div>
+                <p style={{ margin: 0, fontSize: "11px", fontWeight: 800, color: gecko.acquisition_type === "Hatched" ? "#15803d" : gecko.acquisition_type === "Purchased" ? "#b45309" : "#0369a1" }}>
+                  {gecko.acquisition_type === "Hatched" ? "직접 해칭" : gecko.acquisition_type === "Purchased" ? "샵 구매" : "구조"}
+                </p>
+                {gecko.acquisition_source && (
+                  <p style={{ margin: "1px 0 0", fontSize: "10px", fontWeight: 600, color: "#999" }}>
+                    {gecko.acquisition_source}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 부모 정보 */}
+          {(gecko.sire_name || gecko.dam_name) && (
+            <div
+              style={{
+                flex: 1,
+                background: "rgba(0,0,0,0.035)",
+                borderRadius: "14px",
+                padding: "7px 12px",
+              }}
+            >
+              <p style={{ margin: 0, fontSize: "10px", fontWeight: 700, color: "#aaa", marginBottom: "4px" }}>PARENTS</p>
+              {gecko.sire_name && (
+                <p style={{ margin: 0, fontSize: "11px", fontWeight: 800, color: "#0ea5e9" }}>
+                  ♂ {gecko.sire_name}
+                </p>
+              )}
+              {gecko.dam_name && (
+                <p style={{ margin: gecko.sire_name ? "2px 0 0" : 0, fontSize: "11px", fontWeight: 800, color: "#f43f5e" }}>
+                  ♀ {gecko.dam_name}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* 건강 상태 태그 */}
         {(gecko.is_ovulating || gecko.mbd) && (
           <div style={{ display: "flex", gap: "6px", marginTop: "12px", flexWrap: "wrap" }}>
