@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "../theme-toggle";
 import LoginButton from "../LoginButton";
-import { Leaf, Egg, Dna, Home, Menu } from "lucide-react";
+import { Leaf, Egg, Dna, Home, Menu, CalendarDays } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -17,6 +17,7 @@ import { Button } from "../ui/button";
 
 const NAV_LINKS = [
   { href: "/", label: "홈", icon: Home },
+  { href: "/calendar", label: "캘린더", icon: CalendarDays },
   { href: "/incubator", label: "인큐베이터", icon: Egg },
   { href: "/calculator", label: "유전자 계산기", icon: Dna },
 ];
