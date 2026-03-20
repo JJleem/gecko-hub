@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import DeleteButton from "@/app/components/DeleteButton";
 import GeckoDetailTabs from "@/app/components/GeckoDetailTabs";
 import GeckoPhotoGallery from "@/app/components/GeckoPhotoGallery";
+import { GeckoShareCard } from "@/app/components/GeckoShareCard";
+import { toast } from "sonner";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -21,6 +23,7 @@ import {
   CalendarDays,
   Edit,
   FileText,
+  ImageDown,
   Loader2,
   Scale,
 } from "lucide-react";
@@ -35,6 +38,9 @@ export default function GeckoDetail() {
   const [gecko, setGecko] = useState<Gecko | null>(null);
   const [loading, setLoading] = useState(true);
   const [mainImageLoading, setMainImageLoading] = useState(false);
+  const [cardGenerating, setCardGenerating] = useState(false);
+  const [cardImageBase64, setCardImageBase64] = useState<string | undefined>();
+  const cardRef = useRef<HTMLDivElement>(null);
 
   const fetchGecko = useCallback(
     async (silent = false) => {
@@ -78,6 +84,48 @@ export default function GeckoDetail() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, session, id]);
+
+  // ─── 카드 이미지 생성 ─────────────────────────────────────
+  const generateCard = async () => {
+    if (!gecko) return;
+    setCardGenerating(true);
+    try {
+      // 프로필 이미지 base64 변환 (CORS 우회)
+      if (gecko.profile_image) {
+        try {
+          const res = await fetch(gecko.profile_image);
+          const blob = await res.blob();
+          const base64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+          setCardImageBase64(base64);
+          await new Promise((r) => setTimeout(r, 150)); // 렌더 대기
+        } catch {
+          setCardImageBase64(undefined);
+        }
+      }
+
+      if (!cardRef.current) return;
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(cardRef.current, {
+        pixelRatio: 2.5,
+        cacheBust: true,
+      });
+
+      const link = document.createElement("a");
+      link.download = `${gecko.name}_geckohub.png`;
+      link.href = dataUrl;
+      link.click();
+      toast.success("카드 이미지가 저장됐어요! 🌿");
+    } catch (err) {
+      console.error(err);
+      toast.error("이미지 생성에 실패했습니다.");
+    } finally {
+      setCardGenerating(false);
+    }
+  };
 
   // ─── 로딩 스켈레톤 ───────────────────────────────────────
   if (loading || !gecko) {
@@ -129,6 +177,16 @@ export default function GeckoDetail() {
               <Link href={`/geckos/${gecko.id}/edit`} className="flex items-center gap-1.5 font-bold">
                 <Edit className="w-3.5 h-3.5" /> 정보 수정
               </Link>
+            </Button>
+            <Button
+              onClick={generateCard}
+              disabled={cardGenerating}
+              variant="outline"
+              size="sm"
+              className="border-primary/20 text-primary hover:bg-primary hover:text-primary-foreground shadow-sm transition-all gap-1.5"
+            >
+              {cardGenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageDown className="w-3.5 h-3.5" />}
+              카드 저장
             </Button>
             <DeleteButton id={gecko.id} />
           </div>
@@ -264,6 +322,13 @@ export default function GeckoDetail() {
         {/* 탭 영역 */}
         <GeckoDetailTabs gecko={gecko} onRefresh={() => fetchGecko(false)} />
 
+      </div>
+
+      {/* 숨김 카드 렌더 (html-to-image 캡처용) */}
+      <div style={{ position: "fixed", left: "-9999px", top: 0, zIndex: -1, pointerEvents: "none" }}>
+        <div ref={cardRef}>
+          <GeckoShareCard gecko={gecko} imageBase64={cardImageBase64} />
+        </div>
       </div>
     </main>
   );
