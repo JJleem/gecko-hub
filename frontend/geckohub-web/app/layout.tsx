@@ -8,6 +8,7 @@ import { ThemeToggle } from "./components/theme-toggle";
 import LoginButton from "./components/LoginButton";
 import { Toaster } from "./components/ui/sonner";
 import { Header } from "./components/layout/main-nav";
+import { Footer } from "./components/layout/footer";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -28,6 +29,7 @@ export default function RootLayout({
           <div className="relative flex min-h-screen flex-col">
             <Header />
             <div className="flex-1">{children}</div>
+            <Footer />
             <Toaster position="top-center" richColors />
           </div>
         </Providers>
