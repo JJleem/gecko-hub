@@ -37,6 +37,14 @@ import {
 
 const PAGE_SIZE = 12;
 
+const FEED_TYPES = [
+  { id: "충식", label: "🪲 충식" },
+  { id: "슈퍼푸드", label: "🌿 슈퍼푸드" },
+  { id: "직접입력", label: "✏️ 직접입력" },
+];
+
+const FEED_REMEMBER_KEY = "gecko_feed_remembered";
+
 const DAYS = [
   { id: 0, label: "일" },
   { id: 1, label: "월" },
@@ -71,6 +79,13 @@ export default function Home() {
   const [fedGeckoIds, setFedGeckoIds] = useState<Set<number>>(new Set());
   const [weightOpenId, setWeightOpenId] = useState<number | null>(null);
   const [weightValue, setWeightValue] = useState("");
+
+  // 피딩 노트 패널 상태
+  const [feedOpenId, setFeedOpenId] = useState<number | null>(null);
+  const [feedChoices, setFeedChoices] = useState<Set<string>>(new Set());
+  const [feedCustomText, setFeedCustomText] = useState("");
+  const [feedRemember, setFeedRemember] = useState(false);
+  const [feedSubmitting, setFeedSubmitting] = useState(false);
 
   // DB에서 설정 불러오기
   useEffect(() => {
@@ -202,23 +217,79 @@ export default function Home() {
     }
   };
 
-  // 퀵 피딩
-  const handleQuickFeed = async (geckoId: number, e: React.MouseEvent) => {
+  // 피딩 패널 열기
+  const openFeedPanel = (geckoId: number, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!session?.user?.djangoToken || fedGeckoIds.has(geckoId)) return;
+    if (fedGeckoIds.has(geckoId)) return;
+    // 이미 열려있으면 닫기
+    if (feedOpenId === geckoId) {
+      setFeedOpenId(null);
+      return;
+    }
+    // localStorage에서 기억된 선택 불러오기
+    try {
+      const saved = localStorage.getItem(FEED_REMEMBER_KEY);
+      if (saved) {
+        const parsed: string[] = JSON.parse(saved);
+        setFeedChoices(new Set(parsed));
+        setFeedRemember(true);
+      } else {
+        setFeedChoices(new Set());
+        setFeedRemember(false);
+      }
+    } catch {
+      setFeedChoices(new Set());
+      setFeedRemember(false);
+    }
+    setFeedCustomText("");
+    setWeightOpenId(null);
+    setFeedOpenId(geckoId);
+  };
+
+  // 피딩 기록 제출
+  const handleSubmitFeed = async (geckoId: number, skip: boolean) => {
+    if (!session?.user?.djangoToken) return;
+    setFeedSubmitting(true);
     const todayStr = new Date().toISOString().split("T")[0];
+
+    let note: string | undefined;
+    if (!skip) {
+      const parts: string[] = [];
+      feedChoices.forEach((c) => {
+        if (c === "직접입력") {
+          if (feedCustomText.trim()) parts.push(feedCustomText.trim());
+        } else {
+          parts.push(c);
+        }
+      });
+      if (parts.length > 0) note = parts.join(", ");
+    }
+
+    // 기억하기 처리
+    if (!skip && feedRemember && feedChoices.size > 0) {
+      const toSave = [...feedChoices].filter((c) => c !== "직접입력");
+      if (toSave.length > 0) localStorage.setItem(FEED_REMEMBER_KEY, JSON.stringify(toSave));
+      else localStorage.removeItem(FEED_REMEMBER_KEY);
+    } else if (!feedRemember) {
+      localStorage.removeItem(FEED_REMEMBER_KEY);
+    }
+
     try {
       await apiClient(session.user.djangoToken).post("/api/logs/", {
         gecko: geckoId,
         log_type: "Feeding",
         log_date: todayStr,
+        ...(note ? { note } : {}),
       });
       setFedGeckoIds((prev) => new Set([...prev, geckoId]));
       setIsFedToday(true);
-      toast.success("피딩 완료! 🦗");
+      setFeedOpenId(null);
+      toast.success(note ? `피딩 완료! 🦗 (${note})` : "피딩 완료! 🦗");
     } catch {
       toast.error("피딩 기록 실패");
+    } finally {
+      setFeedSubmitting(false);
     }
   };
 
@@ -644,12 +715,14 @@ export default function Home() {
                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
                           >
                             <button
-                              onClick={(e) => handleQuickFeed(gecko.id, e)}
+                              onClick={(e) => openFeedPanel(gecko.id, e)}
                               disabled={fedGeckoIds.has(gecko.id)}
                               className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                 fedGeckoIds.has(gecko.id)
                                   ? "bg-green-500/10 text-green-600 dark:text-green-400 cursor-default"
-                                  : "bg-muted/50 text-muted-foreground hover:bg-green-500/10 hover:text-green-600 dark:hover:text-green-400"
+                                  : feedOpenId === gecko.id
+                                    ? "bg-green-500/15 text-green-600 dark:text-green-400"
+                                    : "bg-muted/50 text-muted-foreground hover:bg-green-500/10 hover:text-green-600 dark:hover:text-green-400"
                               }`}
                             >
                               {fedGeckoIds.has(gecko.id)
@@ -661,6 +734,7 @@ export default function Home() {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 setWeightOpenId(weightOpenId === gecko.id ? null : gecko.id);
+                                setFeedOpenId(null);
                                 setWeightValue("");
                               }}
                               className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
@@ -672,6 +746,84 @@ export default function Home() {
                               ⚖️ 체중
                             </button>
                           </div>
+
+                          {/* 피딩 노트 패널 */}
+                          {feedOpenId === gecko.id && (
+                            <div
+                              className="flex flex-col gap-2 p-2.5 rounded-xl bg-green-500/5 border border-green-500/20"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            >
+                              {/* 먹이 종류 칩 */}
+                              <div className="flex gap-1.5 flex-wrap">
+                                {FEED_TYPES.map((ft) => (
+                                  <button
+                                    key={ft.id}
+                                    onClick={() => {
+                                      setFeedChoices((prev) => {
+                                        const next = new Set(prev);
+                                        if (next.has(ft.id)) next.delete(ft.id);
+                                        else next.add(ft.id);
+                                        return next;
+                                      });
+                                    }}
+                                    className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-all border ${
+                                      feedChoices.has(ft.id)
+                                        ? "bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/40"
+                                        : "bg-background text-muted-foreground border-border/60 hover:border-green-500/40 hover:text-green-600"
+                                    }`}
+                                  >
+                                    {ft.label}
+                                  </button>
+                                ))}
+                              </div>
+
+                              {/* 직접입력 텍스트 */}
+                              {feedChoices.has("직접입력") && (
+                                <input
+                                  type="text"
+                                  value={feedCustomText}
+                                  onChange={(e) => setFeedCustomText(e.target.value)}
+                                  placeholder="먹이 내용 입력..."
+                                  autoFocus
+                                  className="px-2.5 py-1.5 text-xs rounded-lg border border-border/60 bg-background focus:outline-none focus:ring-1 focus:ring-green-500/40"
+                                  onKeyDown={(e) => {
+                                    e.stopPropagation();
+                                    if (e.key === "Enter") handleSubmitFeed(gecko.id, false);
+                                    if (e.key === "Escape") setFeedOpenId(null);
+                                  }}
+                                />
+                              )}
+
+                              {/* 기억하기 */}
+                              <label className="flex items-center gap-1.5 cursor-pointer w-fit">
+                                <input
+                                  type="checkbox"
+                                  checked={feedRemember}
+                                  onChange={(e) => setFeedRemember(e.target.checked)}
+                                  className="w-3 h-3 rounded accent-green-600"
+                                />
+                                <span className="text-[11px] text-muted-foreground">다음에도 기억하기</span>
+                              </label>
+
+                              {/* 액션 버튼 */}
+                              <div className="flex gap-1.5">
+                                <button
+                                  onClick={() => handleSubmitFeed(gecko.id, true)}
+                                  disabled={feedSubmitting}
+                                  className="flex-1 py-1.5 text-[11px] font-semibold rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted/50 transition-colors disabled:opacity-50"
+                                >
+                                  건너뛰기
+                                </button>
+                                <button
+                                  onClick={() => handleSubmitFeed(gecko.id, false)}
+                                  disabled={feedSubmitting}
+                                  className="flex-1 py-1.5 text-[11px] font-semibold rounded-lg bg-green-600 text-white hover:bg-green-500 transition-colors disabled:opacity-50"
+                                >
+                                  {feedSubmitting ? "저장중..." : "완료 🦗"}
+                                </button>
+                              </div>
+                            </div>
+                          )}
 
                           {/* 체중 입력 폼 */}
                           {weightOpenId === gecko.id && (
