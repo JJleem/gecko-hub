@@ -67,6 +67,11 @@ export default function Home() {
   const [showSettings, setShowSettings] = useState(false);
   const [isFedToday, setIsFedToday] = useState(false);
 
+  // 퀵 액션 상태
+  const [fedGeckoIds, setFedGeckoIds] = useState<Set<number>>(new Set());
+  const [weightOpenId, setWeightOpenId] = useState<number | null>(null);
+  const [weightValue, setWeightValue] = useState("");
+
   // DB에서 설정 불러오기
   useEffect(() => {
     if (!session?.user?.djangoToken) return;
@@ -98,11 +103,13 @@ export default function Home() {
   const applyGeckos = (data: Gecko[]) => {
     setGeckos(data);
     const todayStr = new Date().toISOString().split("T")[0];
-    let fedCount = 0;
+    const fedIds = new Set<number>();
     data.forEach((g) => {
-      if (g.logs.find((l) => l.log_type === "Feeding" && l.log_date === todayStr)) fedCount++;
+      if (g.logs.find((l) => l.log_type === "Feeding" && l.log_date === todayStr))
+        fedIds.add(g.id);
     });
-    setIsFedToday(data.length > 0 && fedCount > 0);
+    setFedGeckoIds(fedIds);
+    setIsFedToday(data.length > 0 && fedIds.size > 0);
   };
 
   // 게코 데이터 불러오기 (스토어 캐시 우선)
@@ -187,10 +194,52 @@ export default function Home() {
 
       await Promise.all(promises);
       setIsFedToday(true);
+      setFedGeckoIds(new Set(geckos.map((g) => g.id)));
       toast.success("모든 개체에게 피딩 기록이 추가되었습니다! 🦗");
     } catch (error) {
       console.error(error);
       toast.error("일부 요청이 실패했을 수 있습니다.");
+    }
+  };
+
+  // 퀵 피딩
+  const handleQuickFeed = async (geckoId: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!session?.user?.djangoToken || fedGeckoIds.has(geckoId)) return;
+    const todayStr = new Date().toISOString().split("T")[0];
+    try {
+      await apiClient(session.user.djangoToken).post("/api/logs/", {
+        gecko: geckoId,
+        log_type: "Feeding",
+        log_date: todayStr,
+      });
+      setFedGeckoIds((prev) => new Set([...prev, geckoId]));
+      setIsFedToday(true);
+      toast.success("피딩 완료! 🦗");
+    } catch {
+      toast.error("피딩 기록 실패");
+    }
+  };
+
+  // 퀵 체중 저장
+  const handleQuickWeight = async (geckoId: number, e: React.MouseEvent | React.KeyboardEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!session?.user?.djangoToken || !weightValue) return;
+    const todayStr = new Date().toISOString().split("T")[0];
+    try {
+      await apiClient(session.user.djangoToken).post("/api/logs/", {
+        gecko: geckoId,
+        log_type: "Weight",
+        log_date: todayStr,
+        weight: parseFloat(weightValue),
+      });
+      toast.success(`${weightValue}g 기록 완료! ⚖️`);
+      setWeightOpenId(null);
+      setWeightValue("");
+    } catch {
+      toast.error("체중 기록 실패");
     }
   };
 
@@ -588,6 +637,71 @@ export default function Home() {
                               <span className="text-[10px]">몸무게</span>
                             </div>
                           </div>
+
+                          {/* 퀵 액션 바 */}
+                          <div
+                            className="flex gap-1.5 pt-2 border-t border-border/40"
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                          >
+                            <button
+                              onClick={(e) => handleQuickFeed(gecko.id, e)}
+                              disabled={fedGeckoIds.has(gecko.id)}
+                              className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                fedGeckoIds.has(gecko.id)
+                                  ? "bg-green-500/10 text-green-600 dark:text-green-400 cursor-default"
+                                  : "bg-muted/50 text-muted-foreground hover:bg-green-500/10 hover:text-green-600 dark:hover:text-green-400"
+                              }`}
+                            >
+                              {fedGeckoIds.has(gecko.id)
+                                ? <><CheckCircle2 className="w-3 h-3" /> 피딩완료</>
+                                : <>🦗 피딩</>}
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setWeightOpenId(weightOpenId === gecko.id ? null : gecko.id);
+                                setWeightValue("");
+                              }}
+                              className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                weightOpenId === gecko.id
+                                  ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                                  : "bg-muted/50 text-muted-foreground hover:bg-blue-500/10 hover:text-blue-600 dark:hover:text-blue-400"
+                              }`}
+                            >
+                              ⚖️ 체중
+                            </button>
+                          </div>
+
+                          {/* 체중 입력 폼 */}
+                          {weightOpenId === gecko.id && (
+                            <div
+                              className="flex gap-1.5"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            >
+                              <input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                value={weightValue}
+                                onChange={(e) => setWeightValue(e.target.value)}
+                                placeholder="g 입력"
+                                autoFocus
+                                className="flex-1 px-2.5 py-1.5 text-xs rounded-lg border border-border/60 bg-background focus:outline-none focus:ring-1 focus:ring-primary/40"
+                                onKeyDown={(e) => {
+                                  e.stopPropagation();
+                                  if (e.key === "Enter") handleQuickWeight(gecko.id, e);
+                                  if (e.key === "Escape") { setWeightOpenId(null); setWeightValue(""); }
+                                }}
+                              />
+                              <button
+                                onClick={(e) => handleQuickWeight(gecko.id, e)}
+                                className="px-3 py-1.5 text-xs rounded-lg bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors"
+                              >
+                                저장
+                              </button>
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     </Link>
