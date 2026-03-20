@@ -747,7 +747,7 @@ export default function Home() {
                           {feedOpenId === gecko.id && (
                             <div
                               className="flex flex-col gap-2 p-2.5 rounded-xl bg-green-500/5 border border-green-500/20"
-                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                              onClick={(e) => { e.stopPropagation(); }}
                             >
                               {/* 먹이 종류 칩 */}
                               <div className="flex gap-1.5 flex-wrap">
@@ -791,7 +791,10 @@ export default function Home() {
                               )}
 
                               {/* 기억하기 */}
-                              <label className="flex items-center gap-1.5 cursor-pointer w-fit">
+                              <label
+                                className="flex items-center gap-1.5 cursor-pointer w-fit"
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 <input
                                   type="checkbox"
                                   checked={feedRemember}
