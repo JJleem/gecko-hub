@@ -807,14 +807,16 @@ export default function Home() {
                               {/* 액션 버튼 */}
                               <div className="flex gap-1.5">
                                 <button
-                                  onClick={() => handleSubmitFeed(gecko.id, true)}
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); handleSubmitFeed(gecko.id, true); }}
                                   disabled={feedSubmitting}
                                   className="flex-1 py-1.5 text-[11px] font-semibold rounded-lg border border-border/60 bg-background text-muted-foreground hover:bg-muted/50 transition-colors disabled:opacity-50"
                                 >
                                   건너뛰기
                                 </button>
                                 <button
-                                  onClick={() => handleSubmitFeed(gecko.id, false)}
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); handleSubmitFeed(gecko.id, false); }}
                                   disabled={feedSubmitting}
                                   className="flex-1 py-1.5 text-[11px] font-semibold rounded-lg bg-green-600 text-white hover:bg-green-500 transition-colors disabled:opacity-50"
                                 >
