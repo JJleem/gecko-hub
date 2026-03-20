@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Gecko } from "@/app/types/gecko";
+import { useSession } from "next-auth/react";
+import { toast } from "sonner";
+import { Gecko, CareLog } from "@/app/types/gecko";
+import { apiClient } from "@/lib/api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
 import {
   Card,
@@ -25,7 +28,19 @@ import {
   Dna,
   FileText,
   Info,
+  Pencil,
+  Trash2,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/app/components/ui/dialog";
+import { Input } from "@/app/components/ui/input";
+import { Label } from "@/app/components/ui/label";
+import { Button } from "@/app/components/ui/button";
 
 // 사육일지 필터 타입
 type LogFilter = "All" | "Feeding" | "Weight" | "Mating" | "Laying" | "Shedding" | "Cleaning" | "Etc";
@@ -55,7 +70,67 @@ export default function GeckoDetailTabs({
   gecko: Gecko;
   onRefresh?: () => void;
 }) {
+  const { data: session } = useSession();
   const [logFilter, setLogFilter] = useState<LogFilter>("All");
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [editingLog, setEditingLog] = useState<CareLog | null>(null);
+  const [editFields, setEditFields] = useState({
+    log_date: "",
+    note: "",
+    weight: "",
+    egg_count: "",
+    is_fertile: false,
+  });
+
+  const handleDeleteLog = async (logId: number) => {
+    if (!session?.user?.djangoToken) return;
+    if (!confirm("이 기록을 삭제하시겠습니까?")) return;
+    setDeletingId(logId);
+    try {
+      const res = await apiClient(session.user.djangoToken).delete(`/api/logs/${logId}/`);
+      if (!res.ok) throw new Error();
+      toast.success("기록이 삭제됐어요");
+      onRefresh?.();
+    } catch {
+      toast.error("삭제 실패");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const openEditModal = (log: CareLog) => {
+    setEditingLog(log);
+    setEditFields({
+      log_date: log.log_date,
+      note: log.note || "",
+      weight: log.weight ? String(log.weight) : "",
+      egg_count: log.egg_count ? String(log.egg_count) : "",
+      is_fertile: log.is_fertile ?? false,
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!session?.user?.djangoToken || !editingLog) return;
+    const body: Record<string, unknown> = {
+      log_date: editFields.log_date,
+      note: editFields.note,
+    };
+    if (editingLog.log_type === "Weight" && editFields.weight)
+      body.weight = parseFloat(editFields.weight);
+    if (editingLog.log_type === "Laying") {
+      body.is_fertile = editFields.is_fertile;
+      if (editFields.egg_count) body.egg_count = parseInt(editFields.egg_count);
+    }
+    try {
+      const res = await apiClient(session.user.djangoToken).patch(`/api/logs/${editingLog.id}/`, body);
+      if (!res.ok) throw new Error();
+      toast.success("수정됐어요");
+      setEditingLog(null);
+      onRefresh?.();
+    } catch {
+      toast.error("수정 실패");
+    }
+  };
 
   const filteredLogs = logFilter === "All"
     ? gecko.logs
@@ -258,6 +333,7 @@ export default function GeckoDetailTabs({
                         <TableHead className="hidden md:table-cell font-bold text-muted-foreground">
                           메모
                         </TableHead>
+                        <TableHead className="w-[72px]" />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -361,6 +437,25 @@ export default function GeckoDetailTabs({
                           <TableCell className="hidden md:table-cell text-muted-foreground text-sm max-w-[200px] truncate">
                             {log.note || "-"}
                           </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1 justify-end">
+                              <button
+                                onClick={() => openEditModal(log)}
+                                className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                                title="수정"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteLog(log.id)}
+                                disabled={deletingId === log.id}
+                                className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-40"
+                                title="삭제"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -382,6 +477,73 @@ export default function GeckoDetailTabs({
           </CardContent>
         </Card>
       </TabsContent>
+
+      {/* ── 로그 수정 모달 ── */}
+      <Dialog open={!!editingLog} onOpenChange={(o) => !o && setEditingLog(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>기록 수정</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>날짜</Label>
+              <Input
+                type="date"
+                value={editFields.log_date}
+                onChange={(e) => setEditFields((p) => ({ ...p, log_date: e.target.value }))}
+              />
+            </div>
+            {editingLog?.log_type === "Weight" && (
+              <div className="space-y-1.5">
+                <Label>체중 (g)</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={editFields.weight}
+                  onChange={(e) => setEditFields((p) => ({ ...p, weight: e.target.value }))}
+                  placeholder="예: 45.5"
+                />
+              </div>
+            )}
+            {editingLog?.log_type === "Laying" && (
+              <>
+                <div className="space-y-1.5">
+                  <Label>알 개수</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={editFields.egg_count}
+                    onChange={(e) => setEditFields((p) => ({ ...p, egg_count: e.target.value }))}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="is_fertile"
+                    checked={editFields.is_fertile}
+                    onChange={(e) => setEditFields((p) => ({ ...p, is_fertile: e.target.checked }))}
+                    className="w-4 h-4"
+                  />
+                  <Label htmlFor="is_fertile">유정란</Label>
+                </div>
+              </>
+            )}
+            <div className="space-y-1.5">
+              <Label>메모</Label>
+              <Input
+                value={editFields.note}
+                onChange={(e) => setEditFields((p) => ({ ...p, note: e.target.value }))}
+                placeholder="메모 (선택)"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditingLog(null)}>취소</Button>
+            <Button onClick={handleSaveEdit}>저장</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── 탭 3: 관계도 ── */}
       <TabsContent value="lineage" className="mt-0">
