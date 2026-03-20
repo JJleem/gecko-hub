@@ -1,5 +1,11 @@
 // app/types/gecko.ts
 
+export interface GeckoPhoto {
+  id: number;
+  image: string;
+  created_at: string;
+}
+
 export interface ParentGecko {
   id: number;
   name: string;
@@ -52,6 +58,9 @@ export interface Gecko {
   sire_detail?: ParentGecko;
   dam_detail?: ParentGecko;
   children?: ParentGecko[];
+
+  // 사진 갤러리
+  photos?: GeckoPhoto[];
 
   // 로그
   logs: CareLog[];

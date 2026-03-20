@@ -12,4 +12,5 @@
 # 환경변수 파일 (민감 정보 포함)
 **/.env
 **/.env.local
-**/.env.*.local
+**/.env.*.local.mcp.json
+backend/package-lock.json

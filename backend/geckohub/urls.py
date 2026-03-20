@@ -4,12 +4,13 @@ from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 # 🔥 1. UserSettingsView 임포트 추가
-from geckos.views import GeckoViewSet, CareLogViewSet, UserSettingsView 
+from geckos.views import GeckoViewSet, CareLogViewSet, UserSettingsView, GeckoPhotoViewSet
 
 # 라우터 설정
 router = DefaultRouter()
-router.register(r'geckos', GeckoViewSet, basename='gecko')  # /api/geckos/
-router.register(r'logs', CareLogViewSet, basename='carelog')  # /api/logs/
+router.register(r'geckos', GeckoViewSet, basename='gecko')
+router.register(r'logs', CareLogViewSet, basename='carelog')
+router.register(r'photos', GeckoPhotoViewSet, basename='geckophoto')
 
 urlpatterns = [
     path('admin/', admin.site.urls),

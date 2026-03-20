@@ -87,6 +87,18 @@ class CareLog(models.Model):
         return f"{self.gecko.name} - {self.log_type} ({self.log_date})"
     
 
+class GeckoPhoto(models.Model):
+    gecko = models.ForeignKey(Gecko, on_delete=models.CASCADE, related_name='photos')
+    image = models.ImageField(upload_to='gecko_photos/')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.gecko.name} - 추가사진"
+
+
 class UserSettings(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='settings')
     # 요일을 숫자 배열로 저장 (예: [0, 2, 4])

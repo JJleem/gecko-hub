@@ -1,7 +1,8 @@
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, serializers as drf_serializers
+from rest_framework.decorators import action
 from django.db.models import Prefetch
-from .models import Gecko, CareLog
-from .serializers import GeckoSerializer, CareLogSerializer
+from .models import Gecko, CareLog, GeckoPhoto
+from .serializers import GeckoSerializer, CareLogSerializer, GeckoPhotoSerializer
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
 from .models import UserSettings
 from rest_framework.response import Response
@@ -44,6 +45,40 @@ class CareLogViewSet(viewsets.ModelViewSet):
         return CareLog.objects.filter(
             gecko__user=self.request.user
         ).order_by('-log_date')
+
+class GeckoPhotoViewSet(viewsets.ModelViewSet):
+    serializer_class = GeckoPhotoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return GeckoPhoto.objects.filter(gecko__user=self.request.user)
+
+    def perform_create(self, serializer):
+        gecko_id = self.request.data.get('gecko')
+        try:
+            gecko = Gecko.objects.get(id=gecko_id, user=self.request.user)
+        except Gecko.DoesNotExist:
+            raise drf_serializers.ValidationError("게코를 찾을 수 없습니다.")
+        if gecko.photos.count() >= 3:
+            raise drf_serializers.ValidationError("추가 사진은 최대 3장까지 업로드할 수 있습니다.")
+        serializer.save(gecko=gecko)
+
+    @action(detail=True, methods=['post'])
+    def set_primary(self, request, pk=None):
+        photo = self.get_object()
+        gecko = photo.gecko
+        old_image_name = gecko.profile_image.name if gecko.profile_image else None
+        # 이 사진을 대표사진으로
+        gecko.profile_image = photo.image.name
+        gecko.save()
+        # 기존 대표사진을 이 슬롯에 보존
+        if old_image_name:
+            photo.image = old_image_name
+            photo.save()
+        else:
+            photo.delete()
+        return Response(GeckoSerializer(gecko).data)
+
 
 class UserSettingsView(APIView):
     permission_classes = [permissions.IsAuthenticated] # 로그인 필수

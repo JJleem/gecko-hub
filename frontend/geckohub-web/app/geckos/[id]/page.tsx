@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import DeleteButton from "@/app/components/DeleteButton";
 import GeckoDetailTabs from "@/app/components/GeckoDetailTabs";
+import GeckoPhotoGallery from "@/app/components/GeckoPhotoGallery";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -133,8 +134,9 @@ export default function GeckoDetail() {
 
         {/* 히어로: 프로필 사진 + 핵심 정보 */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* 사진 */}
-          <div className="lg:col-span-5 relative aspect-square rounded-[2rem] overflow-hidden shadow-xl border-4 border-background bg-muted">
+          {/* 사진 + 갤러리 */}
+          <div className="lg:col-span-5 flex flex-col gap-3">
+          <div className="relative aspect-square rounded-[2rem] overflow-hidden shadow-xl border-4 border-background bg-muted">
             {gecko.profile_image ? (
               <Image
                 src={gecko.profile_image}
@@ -162,6 +164,8 @@ export default function GeckoDetail() {
                 )}
               </div>
             )}
+          </div>
+            <GeckoPhotoGallery gecko={gecko} onRefresh={() => fetchGecko(false)} />
           </div>
 
           {/* 주요 정보 */}

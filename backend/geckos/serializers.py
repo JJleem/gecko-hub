@@ -1,6 +1,13 @@
 from rest_framework import serializers
-from .models import Gecko, CareLog
+from .models import Gecko, CareLog, GeckoPhoto
 from operator import attrgetter
+
+
+class GeckoPhotoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GeckoPhoto
+        fields = ['id', 'image', 'created_at']
+
 
 # 1. 부모/파트너 정보용 미니 시리얼라이저
 class ParentGeckoSerializer(serializers.ModelSerializer):
@@ -21,8 +28,8 @@ class CareLogSerializer(serializers.ModelSerializer):
 
 # 3. 게코 메인 시리얼라이저
 class GeckoSerializer(serializers.ModelSerializer):
-    # logs를 커스텀 함수로 대체합니다.
     logs = serializers.SerializerMethodField()
+    photos = GeckoPhotoSerializer(many=True, read_only=True)
 
     sire_detail = ParentGeckoSerializer(source='sire', read_only=True)
     dam_detail = ParentGeckoSerializer(source='dam', read_only=True)
@@ -38,6 +45,7 @@ class GeckoSerializer(serializers.ModelSerializer):
             'sire_name', 'dam_name',
             'logs',
             'children',
+            'photos',
             'is_ovulating',
             'tail_loss', 'mbd', 'has_spots',
             'acquisition_type', 'acquisition_source',
