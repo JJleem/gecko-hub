@@ -8,23 +8,13 @@ import { Gecko } from "./types/gecko";
 import { apiClient } from "@/lib/api";
 import { useGeckoStore } from "./stores/geckoStore";
 import { toast } from "sonner";
-import LoginButton from "./components/LoginButton";
-import { IncubatorOverview } from "./components/incubator-overview";
-import { ThemeToggle } from "./components/theme-toggle";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "./components/ui/card";
+import { Card, CardContent } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Skeleton } from "./components/ui/skeleton";
 import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Clock,
   Plus,
   Search,
   Settings2,
@@ -40,6 +30,9 @@ const FEED_TYPES = [
 ];
 
 const FEED_REMEMBER_KEY = "gecko_feed_remembered";
+
+// 월~일 순서 (이번 주 스트립용)
+const DAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
 
 const DAYS = [
   { id: 0, label: "일" },
@@ -342,6 +335,28 @@ export default function Home() {
       ),
     ).length;
 
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  // 이번 주 날짜 배열 (월~일)
+  const weekDates = (() => {
+    const today = new Date();
+    const day = today.getDay();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      return d;
+    });
+  })();
+
+  const formatKorDate = (date: Date) => {
+    const m = date.getMonth() + 1;
+    const d = date.getDate();
+    const weekNames = ["일", "월", "화", "수", "목", "금", "토"];
+    return `${m}월 ${d}일 ${weekNames[date.getDay()]}요일`;
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       <main className="container mx-auto p-4 md:p-8 pb-24 max-w-7xl">
@@ -377,176 +392,168 @@ export default function Home() {
             </p>
           </div>
         ) : (
-          /* 로그인 완료 대시보드 UI */
-          <div className="space-y-8 mt-2">
+          /* 로그인 완료 UI */
+          <div className="space-y-5 mt-2">
 
-            {/* 인사 영역 */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-extrabold text-foreground">
-                  안녕하세요 👋
-                </h1>
-                <p className="text-muted-foreground text-sm mt-0.5">
-                  오늘도 게코들이 잘 지내고 있나요?
-                </p>
+            {/* ── 1. TODAY CARD ── */}
+            <div className="relative overflow-hidden rounded-3xl border border-border/30 bg-gradient-to-br from-primary/5 via-card to-accent/8 p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
+                    {formatKorDate(new Date())}
+                  </p>
+                  <h1 className="text-xl sm:text-2xl font-extrabold mt-1.5 text-foreground leading-snug">
+                    {isFeedingDay && !isFedToday
+                      ? "오늘은 피딩하는 날이에요 🦗"
+                      : isFedToday
+                        ? "오늘 피딩 완료했어요 ✅"
+                        : "오늘은 쉬는 날이에요 💤"}
+                  </h1>
+                  <div className="flex flex-wrap gap-2 mt-4">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold bg-card border border-border/50 rounded-full px-3 py-1.5 shadow-sm">
+                      🦎 {geckos.length}마리
+                    </span>
+                    {eggCount > 0 && (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-bold bg-amber-50 dark:bg-amber-900/25 border border-amber-200/60 dark:border-amber-700/30 text-amber-700 dark:text-amber-400 rounded-full px-3 py-1.5 shadow-sm">
+                        🥚 {eggCount}알 부화 중
+                      </span>
+                    )}
+                    {isFedToday ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-bold bg-emerald-50 dark:bg-emerald-900/25 border border-emerald-200/60 dark:border-emerald-700/30 text-emerald-700 dark:text-emerald-400 rounded-full px-3 py-1.5 shadow-sm">
+                        ✅ 피딩 완료
+                      </span>
+                    ) : isFeedingDay ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-bold bg-orange-50 dark:bg-orange-900/25 border border-orange-200/60 dark:border-orange-700/30 text-orange-700 dark:text-orange-400 rounded-full px-3 py-1.5 shadow-sm">
+                        🔔 피딩 예정
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2 shrink-0">
+                  {isFeedingDay && !isFedToday && (
+                    <Button
+                      onClick={handleBulkFeeding}
+                      size="sm"
+                      className="rounded-full px-4 font-bold shadow-sm gap-1.5 whitespace-nowrap text-xs"
+                    >
+                      🦗 일괄 피딩
+                    </Button>
+                  )}
+                  <Link href="/geckos/new">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full px-4 font-bold w-full gap-1.5 border-primary/30 text-primary hover:bg-primary/5 text-xs"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> 새 가족
+                    </Button>
+                  </Link>
+                </div>
               </div>
-              <Link href="/geckos/new">
-                <Button size="sm" className="gap-1.5 rounded-full px-4 shadow-sm font-semibold">
-                  <Plus className="w-4 h-4" /> 새 가족
-                </Button>
-              </Link>
+              {/* 배경 데코 */}
+              <div className="absolute -right-6 -bottom-6 text-[100px] opacity-[0.035] pointer-events-none select-none leading-none">🦎</div>
             </div>
 
-            {/* 핵심 현황 통계 */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl p-4 border border-emerald-100 dark:border-emerald-800/30 flex flex-col gap-1.5">
-                <span className="text-2xl">🦎</span>
-                <p className="text-2xl font-extrabold text-emerald-800 dark:text-emerald-200">{geckos.length}</p>
-                <p className="text-xs font-semibold text-emerald-600/80 dark:text-emerald-400/70">총 게코</p>
-              </div>
-              <div className="bg-amber-50 dark:bg-amber-900/20 rounded-2xl p-4 border border-amber-100 dark:border-amber-800/30 flex flex-col gap-1.5">
-                <span className="text-2xl">🥚</span>
-                <p className="text-2xl font-extrabold text-amber-800 dark:text-amber-200">{eggCount}</p>
-                <p className="text-xs font-semibold text-amber-600/80 dark:text-amber-400/70">부화 중인 알</p>
-              </div>
-              <div className={`rounded-2xl p-4 border flex flex-col gap-1.5 ${
-                isFedToday
-                  ? "bg-primary/8 border-primary/20 dark:bg-primary/15 dark:border-primary/25"
-                  : isFeedingDay
-                    ? "bg-orange-50 dark:bg-orange-900/20 border-orange-100 dark:border-orange-800/30"
-                    : "bg-muted/50 border-border/40"
-              }`}>
-                <span className="text-2xl">{isFedToday ? "✅" : isFeedingDay ? "🔔" : "💤"}</span>
-                <p className={`text-sm font-extrabold leading-tight ${isFedToday ? "text-primary" : isFeedingDay ? "text-orange-600 dark:text-orange-400" : "text-muted-foreground"}`}>
-                  {isFedToday ? "완료" : isFeedingDay ? "필요" : "쉬는 날"}
-                </p>
-                <p className="text-xs font-semibold text-muted-foreground/70">오늘 피딩</p>
-              </div>
-            </div>
-
-            {/* 상단 대시보드 위젯 영역 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 items-stretch">
-              {/* 1. 피딩 스케줄러 위젯 */}
-              <Card className="flex flex-col border-border/40 bg-card rounded-2xl shadow-none">
-                <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                  <CardTitle className="text-base font-bold flex items-center gap-2">
-                    <span className="text-lg">🗓️</span> 피딩 스케줄
-                  </CardTitle>
-                  <Button
+            {/* ── 2. WEEK CALENDAR STRIP ── */}
+            <div className="bg-card rounded-2xl border border-border/40">
+              <div className="flex items-center justify-between px-4 pt-4 pb-3">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-extrabold text-foreground">이번 주</h2>
+                  <button
                     onClick={() => setShowSettings(!showSettings)}
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-xl"
+                    className={`w-6 h-6 flex items-center justify-center rounded-full transition-colors ${showSettings ? "bg-primary/10 text-primary" : "hover:bg-muted text-muted-foreground"}`}
+                    title="피딩 요일 설정"
                   >
-                    <Settings2 className="w-4 h-4 text-muted-foreground" />
-                  </Button>
-                </CardHeader>
-                <CardContent className="flex-1 flex flex-col justify-center">
-                  {showSettings ? (
-                    <div className="flex gap-2 flex-wrap justify-center bg-muted/30 p-4 rounded-2xl border border-border/40">
-                      {DAYS.map((day) => (
-                        <button
-                          key={day.id}
-                          onClick={() => toggleDay(day.id)}
-                          className={`w-9 h-9 rounded-full text-sm font-bold transition-all ${
-                            feedingDays.includes(day.id)
-                              ? "bg-primary text-primary-foreground shadow-sm scale-105"
-                              : "bg-muted/60 text-muted-foreground hover:bg-muted border border-border/50"
-                          }`}
-                        >
-                          {day.label}
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div
-                      className={`flex flex-col items-center justify-center p-6 rounded-2xl text-center border transition-all duration-300 h-full ${
-                        isFedToday
-                          ? "bg-primary/8 border-primary/20 text-primary dark:bg-primary/15"
-                          : isFeedingDay
-                            ? "bg-orange-50 border-orange-200/60 text-orange-700 dark:bg-orange-900/20 dark:border-orange-800/30 dark:text-orange-400"
-                            : "bg-muted/30 border-border/40 text-muted-foreground"
+                    <Settings2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <Link href="/calendar" className="text-xs font-semibold text-muted-foreground hover:text-primary transition-colors">
+                  전체 보기 →
+                </Link>
+              </div>
+
+              {/* 요일 설정 패널 */}
+              {showSettings && (
+                <div className="flex gap-2 flex-wrap justify-center px-4 pb-3 pt-0 border-t border-border/30 pt-3">
+                  <p className="w-full text-center text-xs text-muted-foreground mb-1">피딩하는 요일을 선택하세요</p>
+                  {DAYS.map((day) => (
+                    <button
+                      key={day.id}
+                      onClick={() => toggleDay(day.id)}
+                      className={`w-9 h-9 rounded-full text-sm font-bold transition-all ${
+                        feedingDays.includes(day.id)
+                          ? "bg-primary text-primary-foreground shadow-sm scale-105"
+                          : "bg-muted/60 text-muted-foreground hover:bg-muted border border-border/50"
                       }`}
                     >
-                      {isFeedingDay ? (
-                        isFedToday ? (
-                          <>
-                            <CheckCircle2 className="w-10 h-10 mb-2" />
-                            <p className="font-bold text-base">오늘의 피딩 완료!</p>
-                            <p className="text-xs opacity-75 mt-1">내일도 화이팅! 💪</p>
-                          </>
-                        ) : (
-                          <>
-                            <p className="font-bold text-base mb-3 flex items-center gap-2">
-                              🔔 오늘은 피딩하는 날!
-                            </p>
-                            <Button
-                              onClick={handleBulkFeeding}
-                              className="w-full rounded-full shadow-sm font-semibold"
-                            >
-                              일괄 피딩 기록하기
-                            </Button>
-                          </>
-                        )
-                      ) : (
-                        <>
-                          <Clock className="w-8 h-8 mb-2 opacity-40" />
-                          <p className="font-semibold text-sm">오늘은 쉬는 날이에요</p>
-                          <p className="text-xs opacity-60 mt-1">
-                            {feedingDays.length > 0
-                              ? `다음: ${feedingDays.sort().map((d) => DAYS[d].label).join(", ")}`
-                              : "톱니바퀴를 눌러 요일을 설정하세요"}
-                          </p>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                      {day.label}
+                    </button>
+                  ))}
+                </div>
+              )}
 
-              {/* 2. 인큐베이터 현황 */}
-              <IncubatorOverview geckos={geckos} />
+              {/* 7일 캘린더 */}
+              <div className="grid grid-cols-7 px-2 pb-3">
+                {weekDates.map((date, idx) => {
+                  const dayOfWeek = date.getDay();
+                  const dateStr = date.toISOString().split("T")[0];
+                  const isToday = dateStr === todayStr;
+                  const isFeedDay = feedingDays.includes(dayOfWeek);
+                  const dayLogs = geckos.flatMap((g) => g.logs.filter((l) => l.log_date === dateStr));
+                  const hasFeedLog = dayLogs.some((l) => l.log_type === "Feeding");
+                  const hasLayingLog = dayLogs.some((l) => l.log_type === "Laying");
+                  const isPast = dateStr < todayStr;
 
-              {/* 3. 새 가족 등록 위젯 */}
-              <Link href="/geckos/new" className="block h-full group">
-                <Card className="h-full flex flex-col items-center justify-center border-dashed border-2 border-border/50 hover:border-primary/40 hover:bg-primary/4 transition-all duration-200 cursor-pointer shadow-none bg-card/60 rounded-2xl">
-                  <CardContent className="flex flex-col items-center justify-center p-6 text-center">
-                    <div className="w-14 h-14 rounded-2xl bg-primary/8 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-primary/12 transition-all duration-200">
-                      <Plus className="w-7 h-7 text-primary" />
+                  return (
+                    <div
+                      key={dateStr}
+                      className={`flex flex-col items-center gap-0.5 py-2 px-0.5 rounded-2xl ${isToday ? "bg-primary/8 dark:bg-primary/15" : ""}`}
+                    >
+                      <span className={`text-[11px] font-bold ${
+                        dayOfWeek === 0 ? "text-rose-500" : dayOfWeek === 6 ? "text-sky-500" : "text-muted-foreground"
+                      }`}>
+                        {DAY_LABELS[idx]}
+                      </span>
+                      <span className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-bold ${
+                        isToday
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-foreground"
+                      }`}>
+                        {date.getDate()}
+                      </span>
+                      <div className="h-4 flex items-center justify-center gap-0.5">
+                        {hasFeedLog ? (
+                          <span className="text-[12px] leading-none">🦗</span>
+                        ) : isFeedDay && !isPast ? (
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary/50" />
+                        ) : isFeedDay && isPast ? (
+                          <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/25" />
+                        ) : null}
+                        {hasLayingLog && <span className="text-[10px] leading-none">🥚</span>}
+                      </div>
                     </div>
-                    <CardTitle className="text-base font-bold mb-1 group-hover:text-primary transition-colors">
-                      새 가족 등록
-                    </CardTitle>
-                    <CardDescription className="text-xs leading-relaxed">
-                      새로운 게코의 프로필을 추가하세요
-                    </CardDescription>
-                  </CardContent>
-                </Card>
-              </Link>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* 게코 목록 영역 */}
+            {/* ── 3. GECKO LIST ── */}
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-xl font-extrabold tracking-tight text-foreground">
-                    내 게코들 🦎
-                  </h2>
+                  <h2 className="text-xl font-extrabold text-foreground">내 게코들</h2>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    총 {geckos.length}마리 등록됨
+                    {geckos.length}마리 등록됨
                     {filteredGeckos.length !== geckos.length && (
-                      <span className="ml-1.5 text-primary font-semibold">
-                        ({filteredGeckos.length}마리 표시 중)
-                      </span>
+                      <span className="ml-1.5 text-primary font-semibold">({filteredGeckos.length}마리 표시 중)</span>
                     )}
                   </p>
                 </div>
               </div>
 
-              {/* 검색 + 필터 바 */}
+              {/* 검색 + 필터 */}
               {geckos.length > 0 && (
                 <div className="flex flex-col sm:flex-row gap-2.5 mb-5">
-                  {/* 검색창 */}
                   <div className="relative flex-1">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                     <input
@@ -554,28 +561,21 @@ export default function Home() {
                       value={searchQuery}
                       onChange={(e) => handleSearchChange(e.target.value)}
                       placeholder="이름 또는 모프로 검색..."
-                      className="w-full pl-10 pr-8 py-2.5 text-sm rounded-full border border-border/50 bg-card placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary/40 transition-all shadow-none"
+                      className="w-full pl-10 pr-8 py-2.5 text-sm rounded-full border border-border/50 bg-card placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary/40 transition-all"
                     />
                     {searchQuery && (
-                      <button
-                        onClick={() => handleSearchChange("")}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      >
+                      <button onClick={() => handleSearchChange("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                         <X className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
-
-                  {/* 성별 필터 */}
-                  <div className="flex items-center gap-1.5 bg-muted/40 rounded-full px-2 py-1 border border-border/40">
+                  <div className="flex items-center gap-1 bg-muted/40 rounded-full px-1.5 py-1 border border-border/40">
                     {(["All", "Male", "Female"] as const).map((g) => (
                       <button
                         key={g}
                         onClick={() => handleGenderChange(g)}
-                        className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
-                          genderFilter === g
-                            ? "bg-card text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground"
+                        className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                          genderFilter === g ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
                         {g === "All" ? "전체" : g === "Male" ? "♂ 수컷" : "♀ 암컷"}
