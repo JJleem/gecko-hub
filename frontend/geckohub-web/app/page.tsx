@@ -227,19 +227,21 @@ export default function Home() {
       setFeedOpenId(null);
       return;
     }
-    // localStorage에서 기억된 선택 불러오기 (체크박스는 항상 false로 리셋)
+    // localStorage에서 기억된 선택 불러오기
     try {
       const saved = localStorage.getItem(FEED_REMEMBER_KEY);
       if (saved) {
         const parsed: string[] = JSON.parse(saved);
         setFeedChoices(parsed);
+        setFeedRemember(true);  // 저장된 게 있으면 체크박스도 체크
       } else {
         setFeedChoices([]);
+        setFeedRemember(false);
       }
     } catch {
       setFeedChoices([]);
+      setFeedRemember(false);
     }
-    setFeedRemember(false);
     setFeedCustomText("");
     setWeightOpenId(null);
     setFeedOpenId(geckoId);
