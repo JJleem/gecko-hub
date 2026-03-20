@@ -24,6 +24,8 @@ import { Skeleton } from "./components/ui/skeleton";
 import {
   CalendarCheck,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Plus,
   Search,
@@ -32,6 +34,8 @@ import {
   SlidersHorizontal,
   X,
 } from "lucide-react";
+
+const PAGE_SIZE = 12;
 
 const DAYS = [
   { id: 0, label: "일" },
@@ -49,6 +53,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [genderFilter, setGenderFilter] = useState<"All" | "Male" | "Female">("All");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const {
     geckos: cachedGeckos,
@@ -199,6 +204,22 @@ export default function Home() {
       genderFilter === "All" || g.gender === genderFilter;
     return matchesSearch && matchesGender;
   });
+
+  // 페이지네이션
+  const totalPages = Math.ceil(filteredGeckos.length / PAGE_SIZE);
+  const pagedGeckos = filteredGeckos.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
+
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    setCurrentPage(1);
+  };
+  const handleGenderChange = (val: "All" | "Male" | "Female") => {
+    setGenderFilter(val);
+    setCurrentPage(1);
+  };
 
   // 렌더링 시작
   const eggCount = geckos
@@ -429,13 +450,13 @@ export default function Home() {
                     <input
                       type="text"
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onChange={(e) => handleSearchChange(e.target.value)}
                       placeholder="이름 또는 모프로 검색..."
                       className="w-full pl-9 pr-8 py-2.5 text-sm rounded-xl border border-border/60 bg-muted/30 placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
                     />
                     {searchQuery && (
                       <button
-                        onClick={() => setSearchQuery("")}
+                        onClick={() => handleSearchChange("")}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -449,7 +470,7 @@ export default function Home() {
                     {(["All", "Male", "Female"] as const).map((g) => (
                       <button
                         key={g}
-                        onClick={() => setGenderFilter(g)}
+                        onClick={() => handleGenderChange(g)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                           genderFilter === g
                             ? "bg-primary text-primary-foreground shadow-sm"
@@ -486,15 +507,16 @@ export default function Home() {
                     다른 이름이나 모프로 검색해보세요
                   </p>
                   <button
-                    onClick={() => { setSearchQuery(""); setGenderFilter("All"); }}
+                    onClick={() => { handleSearchChange(""); handleGenderChange("All"); }}
                     className="mt-3 text-xs text-primary hover:underline"
                   >
                     필터 초기화
                   </button>
                 </div>
               ) : (
+                <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                  {filteredGeckos.map((gecko) => (
+                  {pagedGeckos.map((gecko) => (
                     <Link
                       href={`/geckos/${gecko.id}`}
                       key={gecko.id}
@@ -571,6 +593,59 @@ export default function Home() {
                     </Link>
                   ))}
                 </div>
+
+                {/* 페이지네이션 */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-8">
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="w-9 h-9 flex items-center justify-center rounded-lg border border-border/60 bg-card hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter((p) =>
+                        p === 1 ||
+                        p === totalPages ||
+                        Math.abs(p - currentPage) <= 1,
+                      )
+                      .reduce<(number | "...")[]>((acc, p, idx, arr) => {
+                        if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("...");
+                        acc.push(p);
+                        return acc;
+                      }, [])
+                      .map((item, idx) =>
+                        item === "..." ? (
+                          <span key={`ellipsis-${idx}`} className="w-9 h-9 flex items-center justify-center text-muted-foreground text-sm">
+                            ···
+                          </span>
+                        ) : (
+                          <button
+                            key={item}
+                            onClick={() => setCurrentPage(item as number)}
+                            className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-all ${
+                              currentPage === item
+                                ? "bg-primary text-primary-foreground shadow-sm"
+                                : "border border-border/60 bg-card hover:bg-muted text-foreground"
+                            }`}
+                          >
+                            {item}
+                          </button>
+                        ),
+                      )}
+
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="w-9 h-9 flex items-center justify-center rounded-lg border border-border/60 bg-card hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+                </>
               )}
             </div>
           </div>
