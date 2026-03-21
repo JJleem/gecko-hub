@@ -536,14 +536,14 @@ export default function IncubatorPage() {
                 </div>
                 {!isManualFather ? (
                   <Select
-                    value={formData.fatherId}
-                    onValueChange={(v) => setFormData({ ...formData, fatherId: v })}
+                    value={formData.fatherId || "none"}
+                    onValueChange={(v) => setFormData({ ...formData, fatherId: v === "none" ? "" : v })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="선택 안 함" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">선택 안 함</SelectItem>
+                      <SelectItem value="none">선택 안 함</SelectItem>
                       {males.map((m) => (
                         <SelectItem key={m.id} value={String(m.id)}>
                           {m.name} ({m.morph || "모프없음"})

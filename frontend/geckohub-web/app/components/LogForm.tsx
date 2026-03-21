@@ -257,16 +257,16 @@ export default function LogForm({
                     </div>
                     {!isManualPartner ? (
                       <Select
-                        value={formData.partner}
+                        value={formData.partner || "none"}
                         onValueChange={(val) =>
-                          setFormData({ ...formData, partner: val })
+                          setFormData({ ...formData, partner: val === "none" ? "" : val })
                         }
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="목록에서 선택" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">선택 안 함</SelectItem>
+                          <SelectItem value="none">선택 안 함</SelectItem>
                           {partners.map((p) => (
                             <SelectItem key={p.id} value={String(p.id)}>
                               {p.name} ({p.gender === "Male" ? "수컷" : "암컷"})
