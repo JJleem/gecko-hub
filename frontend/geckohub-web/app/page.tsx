@@ -590,25 +590,38 @@ export default function Home() {
               {geckos.length > 0 && (
                 <div className="flex flex-col sm:flex-row gap-2.5 mb-5">
                   <div className="relative flex-1">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                    <label htmlFor="gecko-search" className="sr-only">게코 이름 또는 모프로 검색</label>
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" aria-hidden="true" />
                     <input
-                      type="text"
+                      id="gecko-search"
+                      type="search"
                       value={searchQuery}
                       onChange={(e) => handleSearchChange(e.target.value)}
                       placeholder="이름 또는 모프로 검색..."
                       className="w-full pl-10 pr-8 py-2.5 text-sm rounded-full border border-border/50 bg-card placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary/40 transition-all"
                     />
                     {searchQuery && (
-                      <button onClick={() => handleSearchChange("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                        <X className="w-3.5 h-3.5" />
+                      <button
+                        type="button"
+                        onClick={() => handleSearchChange("")}
+                        aria-label="검색어 지우기"
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="w-3.5 h-3.5" aria-hidden="true" />
                       </button>
                     )}
                   </div>
-                  <div className="flex items-center gap-1 bg-muted/40 rounded-full px-1.5 py-1 border border-border/40">
+                  <div
+                    role="group"
+                    aria-label="성별 필터"
+                    className="flex items-center gap-1 bg-muted/40 rounded-full px-1.5 py-1 border border-border/40"
+                  >
                     {(["All", "Male", "Female"] as const).map((g) => (
                       <button
                         key={g}
+                        type="button"
                         onClick={() => handleGenderChange(g)}
+                        aria-pressed={genderFilter === g}
                         className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
                           genderFilter === g ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                         }`}
@@ -755,14 +768,17 @@ export default function Home() {
                           {/* 피딩 노트 패널 */}
                           {feedOpenId === gecko.id && (
                             <div
+                              role="region"
+                              aria-label={`${gecko.name} 피딩 기록`}
                               className="flex flex-col gap-2 p-2.5 rounded-xl bg-emerald-50/80 dark:bg-emerald-900/20 border border-emerald-200/60 dark:border-emerald-700/30"
                               onClick={(e) => { e.stopPropagation(); }}
                             >
-                              <div className="flex gap-1.5 flex-wrap">
+                              <div role="group" aria-label="먹이 선택" className="flex gap-1.5 flex-wrap">
                                 {FEED_TYPES.map((ft) => (
                                   <button
                                     key={ft.id}
                                     type="button"
+                                    aria-pressed={feedChoices.includes(ft.id)}
                                     onClick={() => setFeedChoices((prev) =>
                                       prev.includes(ft.id) ? prev.filter((c) => c !== ft.id) : [...prev, ft.id]
                                     )}
@@ -777,19 +793,23 @@ export default function Home() {
                                 ))}
                               </div>
                               {feedChoices.includes("직접입력") && (
-                                <input
-                                  type="text"
-                                  value={feedCustomText}
-                                  onChange={(e) => setFeedCustomText(e.target.value)}
-                                  placeholder="먹이 내용 입력..."
-                                  autoFocus
-                                  className="px-2.5 py-1.5 text-xs rounded-xl border border-border/50 bg-white dark:bg-card focus:outline-none focus:ring-1 focus:ring-emerald-400"
-                                  onKeyDown={(e) => {
-                                    e.stopPropagation();
-                                    if (e.key === "Enter") handleSubmitFeed(gecko.id, false);
-                                    if (e.key === "Escape") setFeedOpenId(null);
-                                  }}
-                                />
+                                <>
+                                  <label htmlFor={`feed-custom-${gecko.id}`} className="sr-only">먹이 내용 직접 입력</label>
+                                  <input
+                                    id={`feed-custom-${gecko.id}`}
+                                    type="text"
+                                    value={feedCustomText}
+                                    onChange={(e) => setFeedCustomText(e.target.value)}
+                                    placeholder="먹이 내용 입력..."
+                                    autoFocus
+                                    className="px-2.5 py-1.5 text-xs rounded-xl border border-border/50 bg-white dark:bg-card focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                                    onKeyDown={(e) => {
+                                      e.stopPropagation();
+                                      if (e.key === "Enter") handleSubmitFeed(gecko.id, false);
+                                      if (e.key === "Escape") setFeedOpenId(null);
+                                    }}
+                                  />
+                                </>
                               )}
                               <label className="flex items-center gap-1.5 cursor-pointer w-fit" onClick={(e) => e.stopPropagation()}>
                                 <input

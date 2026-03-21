@@ -29,12 +29,15 @@ export default function GeckoPhotoGallery({
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [settingPrimaryId, setSettingPrimaryId] = useState<number | null>(null);
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+  const lightboxCloseRef = useRef<HTMLButtonElement>(null);
 
   const photos: GeckoPhoto[] = gecko.photos ?? [];
 
-  // 라이트박스 키보드 핸들러
+  // 라이트박스 키보드 핸들러 + 포커스 이동
   useEffect(() => {
     if (lightboxIdx === null) return;
+    // 열릴 때 닫기 버튼으로 포커스 이동
+    lightboxCloseRef.current?.focus();
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") setLightboxIdx(null);
       if (e.key === "ArrowLeft") setLightboxIdx((p) => (p !== null && p > 0 ? p - 1 : p));
@@ -116,17 +119,24 @@ export default function GeckoPhotoGallery({
             className={`relative group w-16 h-16 rounded-xl overflow-hidden border-2 bg-muted flex-shrink-0 transition-all duration-200 ${
               isThisBusy
                 ? "border-primary/60 scale-95 opacity-80"
-                : "border-border/50 hover:border-primary/60 cursor-pointer"
+                : "border-border/50 hover:border-primary/60"
             }`}
           >
-            <Image
-              src={photo.image}
-              alt="추가 사진"
-              fill
-              className={`object-cover transition-all duration-300 ${isThisBusy ? "blur-[1px]" : ""}`}
-              unoptimized
+            <button
+              type="button"
               onClick={() => !isThisBusy && setLightboxIdx(index)}
-            />
+              disabled={isThisBusy}
+              aria-label={`사진 ${index + 1} 크게 보기`}
+              className="absolute inset-0 w-full h-full cursor-zoom-in disabled:cursor-default focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
+            >
+              <Image
+                src={photo.image}
+                alt={`${gecko.name} 사진 ${index + 1}`}
+                fill
+                className={`object-cover transition-all duration-300 ${isThisBusy ? "blur-[1px]" : ""}`}
+                unoptimized
+              />
+            </button>
 
             {/* 로딩 오버레이 */}
             {isThisBusy && (
@@ -203,24 +213,32 @@ export default function GeckoPhotoGallery({
       {/* ── 라이트박스 ── */}
       {lightboxIdx !== null && photos[lightboxIdx] && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${gecko.name} 사진 ${lightboxIdx + 1} / ${photos.length}`}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm"
           onClick={() => setLightboxIdx(null)}
         >
           {/* 닫기 */}
           <button
+            ref={lightboxCloseRef}
+            type="button"
             onClick={() => setLightboxIdx(null)}
-            className="absolute top-4 right-4 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+            aria-label="사진 닫기"
+            className="absolute top-4 right-4 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors focus-visible:ring-2 focus-visible:ring-white"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
 
           {/* 이전 */}
           {lightboxIdx > 0 && (
             <button
+              type="button"
               onClick={(e) => { e.stopPropagation(); setLightboxIdx(lightboxIdx - 1); }}
-              className="absolute left-4 z-10 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+              aria-label="이전 사진"
+              className="absolute left-4 z-10 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors focus-visible:ring-2 focus-visible:ring-white"
             >
-              <ChevronLeft className="w-6 h-6" />
+              <ChevronLeft className="w-6 h-6" aria-hidden="true" />
             </button>
           )}
 
@@ -231,7 +249,7 @@ export default function GeckoPhotoGallery({
           >
             <img
               src={photos[lightboxIdx].image}
-              alt="사진"
+              alt={`${gecko.name} 사진 ${lightboxIdx + 1}`}
               className="max-w-[90vw] max-h-[85vh] object-contain"
             />
           </div>
@@ -239,15 +257,21 @@ export default function GeckoPhotoGallery({
           {/* 다음 */}
           {lightboxIdx < photos.length - 1 && (
             <button
+              type="button"
               onClick={(e) => { e.stopPropagation(); setLightboxIdx(lightboxIdx + 1); }}
-              className="absolute right-4 z-10 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+              aria-label="다음 사진"
+              className="absolute right-4 z-10 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors focus-visible:ring-2 focus-visible:ring-white"
             >
-              <ChevronRight className="w-6 h-6" />
+              <ChevronRight className="w-6 h-6" aria-hidden="true" />
             </button>
           )}
 
           {/* 인덱스 */}
-          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 text-white/70 text-xs font-semibold bg-black/40 px-3 py-1.5 rounded-full">
+          <div
+            aria-live="polite"
+            aria-atomic="true"
+            className="absolute bottom-5 left-1/2 -translate-x-1/2 text-white/70 text-xs font-semibold bg-black/40 px-3 py-1.5 rounded-full"
+          >
             {lightboxIdx + 1} / {photos.length}
           </div>
         </div>

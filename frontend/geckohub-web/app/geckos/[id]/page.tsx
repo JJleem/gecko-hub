@@ -346,17 +346,24 @@ export default function GeckoDetail() {
       {/* 대표사진 라이트박스 */}
       {profileLightbox && gecko.profile_image && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${gecko.name} 대표사진`}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm"
           onClick={() => setProfileLightbox(false)}
         >
           <button
+            type="button"
+            // eslint-disable-next-line jsx-a11y/no-autofocus
+            autoFocus
             onClick={() => setProfileLightbox(false)}
-            className="absolute top-4 right-4 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+            aria-label="사진 닫기"
+            className="absolute top-4 right-4 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors focus-visible:ring-2 focus-visible:ring-white"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
           <div className="relative max-w-[92vw] max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <img src={gecko.profile_image} alt={gecko.name} className="max-w-[92vw] max-h-[90vh] object-contain" />
+            <img src={gecko.profile_image} alt={`${gecko.name} 대표사진`} className="max-w-[92vw] max-h-[90vh] object-contain" />
             <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent px-5 py-4">
               <p className="text-white font-black text-lg">{gecko.name}</p>
               <p className="text-white/70 text-sm font-semibold">{gecko.morph || "모프 정보 없음"}</p>

@@ -33,9 +33,10 @@ export function Header() {
         {/* Logo */}
         <Link
           href="/"
+          aria-label="GeckoHub 홈으로"
           className="flex items-center gap-2.5 hover:opacity-80 transition-opacity shrink-0"
         >
-          <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shadow-sm">
+          <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shadow-sm" aria-hidden="true">
             <Leaf className="w-4 h-4 text-primary-foreground" />
           </div>
           <span className="text-[18px] font-extrabold tracking-tight text-foreground">
@@ -44,20 +45,21 @@ export function Header() {
         </Link>
 
         {/* 데스크탑 Nav */}
-        <nav className="hidden sm:flex items-center gap-1">
+        <nav className="hidden sm:flex items-center gap-1" aria-label="주요 메뉴">
           {NAV_LINKS.filter((l) => l.href !== "/").map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href;
             return (
               <Link
                 key={href}
                 href={href}
+                aria-current={isActive ? "page" : undefined}
                 className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 ${
                   isActive
                     ? "bg-primary/12 text-primary"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" />
+                <Icon className="w-3.5 h-3.5" aria-hidden="true" />
                 {label}
               </Link>
             );
@@ -90,20 +92,21 @@ export function Header() {
               <span className="font-extrabold text-lg">🦎 GeckoHub</span>
             </SheetTitle>
           </SheetHeader>
-          <nav className="flex flex-col gap-1 px-3 py-4">
+          <nav className="flex flex-col gap-1 px-3 py-4" aria-label="모바일 메뉴">
             {NAV_LINKS.map(({ href, label, icon: Icon }) => {
               const isActive = pathname === href;
               return (
                 <SheetClose key={href} asChild>
                   <Link
                     href={href}
+                    aria-current={isActive ? "page" : undefined}
                     className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition-colors ${
                       isActive
                         ? "bg-primary/10 text-primary"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                     }`}
                   >
-                    <Icon className="w-5 h-5 shrink-0" />
+                    <Icon className="w-5 h-5 shrink-0" aria-hidden="true" />
                     {label}
                   </Link>
                 </SheetClose>

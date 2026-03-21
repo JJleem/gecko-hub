@@ -284,11 +284,13 @@ export default function GeckoDetailTabs({
 
             {/* 타입 필터 바 */}
             <div className="px-6 py-3 border-b border-border/50 bg-background overflow-x-auto">
-              <div className="flex gap-1.5 min-w-max">
+              <div role="group" aria-label="사육일지 종류 필터" className="flex gap-1.5 min-w-max">
                 {LOG_FILTERS.map(({ type, label }) => (
                   <button
                     key={type}
+                    type="button"
                     onClick={() => setLogFilter(type)}
+                    aria-pressed={logFilter === type}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
                       logFilter === type
                         ? "bg-primary text-primary-foreground shadow-sm"
@@ -440,19 +442,21 @@ export default function GeckoDetailTabs({
                           <TableCell>
                             <div className="flex items-center gap-1 justify-end">
                               <button
+                                type="button"
                                 onClick={() => openEditModal(log)}
+                                aria-label={`${log.log_date} 기록 수정`}
                                 className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                                title="수정"
                               >
-                                <Pencil className="w-3.5 h-3.5" />
+                                <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
                               </button>
                               <button
+                                type="button"
                                 onClick={() => handleDeleteLog(log.id)}
                                 disabled={deletingId === log.id}
+                                aria-label={`${log.log_date} 기록 삭제`}
                                 className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-40"
-                                title="삭제"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
+                                <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                               </button>
                             </div>
                           </TableCell>

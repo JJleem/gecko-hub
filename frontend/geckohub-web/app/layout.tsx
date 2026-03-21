@@ -78,9 +78,15 @@ export default function RootLayout({
     <html lang="ko" suppressHydrationWarning>
       <body className={`${nunito.variable} font-[family-name:var(--font-nunito)]`}>
         <Providers>
+          {/* 본문 바로가기 — 키보드 사용자용 skip link */}
+          <a href="#main-content" className="skip-link">
+            본문 바로가기
+          </a>
           <div className="relative flex min-h-screen flex-col">
             <Header />
-            <div className="flex-1">{children}</div>
+            <main id="main-content" className="flex-1" tabIndex={-1}>
+              {children}
+            </main>
             <Footer />
             <Toaster position="top-center" richColors />
           </div>

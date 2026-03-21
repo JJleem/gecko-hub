@@ -170,4 +170,37 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
+  /* ── 웹 접근성 ── */
+
+  /* Skip navigation link */
+  .skip-link {
+    position: absolute;
+    top: -100%;
+    left: 1rem;
+    z-index: 9999;
+    padding: 0.5rem 1rem;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font-weight: 700;
+    font-size: 0.875rem;
+    border-radius: 0 0 0.5rem 0.5rem;
+    text-decoration: none;
+    transition: top 0.15s;
+  }
+  .skip-link:focus {
+    top: 0;
+    outline: 3px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  /* 키보드 포커스 링 — 마우스 클릭 시엔 숨기고 키보드 탐색 시에만 표시 */
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
 }

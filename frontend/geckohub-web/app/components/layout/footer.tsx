@@ -11,7 +11,7 @@ export function Footer() {
 
           {/* 로고 + 설명 */}
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center">
+            <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center" aria-hidden="true">
               <Leaf className="w-3 h-3 text-primary-foreground" />
             </div>
             <span className="text-sm font-semibold text-foreground">
@@ -29,6 +29,7 @@ export function Footer() {
               href="https://github.com/JJleem"
               target="_blank"
               rel="noopener noreferrer"
+              aria-label="개발자 GitHub 프로필 (새 탭)"
               className="flex items-center gap-1.5 hover:text-foreground transition-colors"
             >
               {/* GitHub SVG icon */}
@@ -45,6 +46,7 @@ export function Footer() {
               href="https://github.com/JJleem/gecko-hub"
               target="_blank"
               rel="noopener noreferrer"
+              aria-label="GeckoHub 소스코드 (새 탭)"
               className="hover:text-foreground transition-colors"
             >
               소스코드
