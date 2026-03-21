@@ -26,6 +26,8 @@ import {
   ImageDown,
   Loader2,
   Scale,
+  X,
+  ZoomIn,
 } from "lucide-react";
 
 export default function GeckoDetail() {
@@ -41,6 +43,7 @@ export default function GeckoDetail() {
   const [cardGenerating, setCardGenerating] = useState(false);
   const [cardImageBase64, setCardImageBase64] = useState<string | undefined>();
   const cardRef = useRef<HTMLDivElement>(null);
+  const [profileLightbox, setProfileLightbox] = useState(false);
 
   const fetchGecko = useCallback(
     async (silent = false) => {
@@ -84,6 +87,14 @@ export default function GeckoDetail() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, session, id]);
+
+  // ─── 라이트박스 ESC 핸들러 ────────────────────────────────
+  useEffect(() => {
+    if (!profileLightbox) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") setProfileLightbox(false); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [profileLightbox]);
 
   // ─── 카드 이미지 생성 ─────────────────────────────────────
   const generateCard = async () => {
@@ -196,15 +207,23 @@ export default function GeckoDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* 사진 + 갤러리 */}
           <div className="lg:col-span-5 flex flex-col gap-3">
-          <div className="relative aspect-square rounded-[2rem] overflow-hidden shadow-xl border-4 border-background bg-muted">
+          <div
+            className={`relative aspect-square rounded-[2rem] overflow-hidden shadow-xl border-4 border-background bg-muted ${gecko.profile_image ? "cursor-zoom-in group" : ""}`}
+            onClick={() => gecko.profile_image && setProfileLightbox(true)}
+          >
             {gecko.profile_image ? (
-              <Image
-                src={gecko.profile_image}
-                alt={gecko.name}
-                fill
-                className="object-cover hover:scale-105 transition-transform duration-700"
-                unoptimized
-              />
+              <>
+                <Image
+                  src={gecko.profile_image}
+                  alt={gecko.name}
+                  fill
+                  className="object-cover group-hover:scale-105 transition-transform duration-700"
+                  unoptimized
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 flex items-center justify-center">
+                  <ZoomIn className="w-8 h-8 text-white opacity-0 group-hover:opacity-80 transition-opacity duration-300 drop-shadow-lg" />
+                </div>
+              </>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground/30 bg-muted/50">
                 <span className="text-7xl mb-4 drop-shadow-sm">🦎</span>
@@ -323,6 +342,28 @@ export default function GeckoDetail() {
         <GeckoDetailTabs gecko={gecko} onRefresh={() => fetchGecko(false)} />
 
       </div>
+
+      {/* 대표사진 라이트박스 */}
+      {profileLightbox && gecko.profile_image && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm"
+          onClick={() => setProfileLightbox(false)}
+        >
+          <button
+            onClick={() => setProfileLightbox(false)}
+            className="absolute top-4 right-4 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <div className="relative max-w-[92vw] max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <img src={gecko.profile_image} alt={gecko.name} className="max-w-[92vw] max-h-[90vh] object-contain" />
+            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent px-5 py-4">
+              <p className="text-white font-black text-lg">{gecko.name}</p>
+              <p className="text-white/70 text-sm font-semibold">{gecko.morph || "모프 정보 없음"}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 숨김 카드 렌더 (html-to-image 캡처용) */}
       <div style={{ position: "fixed", left: "-9999px", top: 0, zIndex: -1, pointerEvents: "none" }}>

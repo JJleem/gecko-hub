@@ -1,10 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { Plus, Trash2, Star, Loader2 } from "lucide-react";
+import { Plus, Trash2, Star, Loader2, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { Gecko, GeckoPhoto } from "@/app/types/gecko";
 
@@ -28,8 +28,21 @@ export default function GeckoPhotoGallery({
   const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [settingPrimaryId, setSettingPrimaryId] = useState<number | null>(null);
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
 
   const photos: GeckoPhoto[] = gecko.photos ?? [];
+
+  // 라이트박스 키보드 핸들러
+  useEffect(() => {
+    if (lightboxIdx === null) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLightboxIdx(null);
+      if (e.key === "ArrowLeft") setLightboxIdx((p) => (p !== null && p > 0 ? p - 1 : p));
+      if (e.key === "ArrowRight") setLightboxIdx((p) => (p !== null && p < photos.length - 1 ? p + 1 : p));
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [lightboxIdx, photos.length]);
   const canUpload = photos.length < MAX_EXTRA;
   const isBusy = uploading || deletingId !== null || settingPrimaryId !== null;
 
@@ -92,7 +105,7 @@ export default function GeckoPhotoGallery({
   return (
     <div className="flex gap-2">
       {/* 추가 사진 썸네일 */}
-      {photos.map((photo) => {
+      {photos.map((photo, index) => {
         const isDeleting = deletingId === photo.id;
         const isSettingPrimary = settingPrimaryId === photo.id;
         const isThisBusy = isDeleting || isSettingPrimary;
@@ -112,6 +125,7 @@ export default function GeckoPhotoGallery({
               fill
               className={`object-cover transition-all duration-300 ${isThisBusy ? "blur-[1px]" : ""}`}
               unoptimized
+              onClick={() => !isThisBusy && setLightboxIdx(index)}
             />
 
             {/* 로딩 오버레이 */}
@@ -185,6 +199,59 @@ export default function GeckoPhotoGallery({
         className="hidden"
         onChange={handleUpload}
       />
+
+      {/* ── 라이트박스 ── */}
+      {lightboxIdx !== null && photos[lightboxIdx] && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm"
+          onClick={() => setLightboxIdx(null)}
+        >
+          {/* 닫기 */}
+          <button
+            onClick={() => setLightboxIdx(null)}
+            className="absolute top-4 right-4 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          {/* 이전 */}
+          {lightboxIdx > 0 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setLightboxIdx(lightboxIdx - 1); }}
+              className="absolute left-4 z-10 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+          )}
+
+          {/* 이미지 */}
+          <div
+            className="relative max-w-[90vw] max-h-[85vh] rounded-2xl overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={photos[lightboxIdx].image}
+              alt="사진"
+              className="max-w-[90vw] max-h-[85vh] object-contain"
+            />
+          </div>
+
+          {/* 다음 */}
+          {lightboxIdx < photos.length - 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setLightboxIdx(lightboxIdx + 1); }}
+              className="absolute right-4 z-10 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+          )}
+
+          {/* 인덱스 */}
+          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 text-white/70 text-xs font-semibold bg-black/40 px-3 py-1.5 rounded-full">
+            {lightboxIdx + 1} / {photos.length}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

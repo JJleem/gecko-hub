@@ -335,6 +335,15 @@ export default function Home() {
       ),
     ).length;
 
+  // 통계
+  const maleCount = geckos.filter((g) => g.gender === "Male").length;
+  const femaleCount = geckos.filter((g) => g.gender === "Female").length;
+  const ovulatingCount = geckos.filter((g) => g.is_ovulating).length;
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  const monthlyFeedings = geckos
+    .flatMap((g) => g.logs)
+    .filter((l) => l.log_type === "Feeding" && l.log_date.startsWith(thisMonth)).length;
+
   const todayStr = new Date().toISOString().split("T")[0];
 
   // 이번 주 날짜 배열 (월~일)
@@ -537,7 +546,33 @@ export default function Home() {
               </div>
             </div>
 
-            {/* ── 3. GECKO LIST ── */}
+            {/* ── 3. STATS ── */}
+            {geckos.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                {[
+                  { emoji: "🦎", label: "전체", value: geckos.length, unit: "마리", color: "bg-card border-border/40" },
+                  { emoji: "♂", label: "수컷", value: maleCount, unit: "마리", color: "bg-sky-50 dark:bg-sky-950/30 border-sky-200/50 dark:border-sky-800/30" },
+                  { emoji: "♀", label: "암컷", value: femaleCount, unit: "마리", color: "bg-rose-50 dark:bg-rose-950/30 border-rose-200/50 dark:border-rose-800/30" },
+                  { emoji: "🥚", label: "배란중", value: ovulatingCount, unit: "마리", color: "bg-amber-50 dark:bg-amber-950/30 border-amber-200/50 dark:border-amber-800/30" },
+                  { emoji: "🦗", label: "이번달 피딩", value: monthlyFeedings, unit: "회", color: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200/50 dark:border-emerald-800/30" },
+                ].map((stat) => (
+                  <div
+                    key={stat.label}
+                    className={`flex items-center gap-3 rounded-2xl border px-4 py-3.5 ${stat.color}`}
+                  >
+                    <span className="text-2xl leading-none">{stat.emoji}</span>
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold text-muted-foreground leading-none mb-1">{stat.label}</p>
+                      <p className="text-lg font-black text-foreground leading-none">
+                        {stat.value}<span className="text-xs font-bold text-muted-foreground ml-0.5">{stat.unit}</span>
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── 4. GECKO LIST ── */}
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div>
