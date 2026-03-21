@@ -13,7 +13,7 @@ import { calculateBreeding } from "@/app/utils/morphCalculator";
 import { getDday, getImageUrl } from "../utils/client-utils";
 import { apiClient } from "@/lib/api";
 import { toast } from "sonner";
-import { MoreVertical, Pencil, Trash2, Plus, Egg, Home } from "lucide-react";
+import { MoreVertical, Pencil, Trash2, Plus, Egg, Home, Loader2 } from "lucide-react";
 
 import {
   Dialog,
@@ -81,6 +81,7 @@ export default function IncubatorPage() {
 
   const [eggs, setEggs] = useState<EggLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
@@ -231,6 +232,7 @@ export default function IncubatorPage() {
     e.preventDefault();
     if (!formData.motherId) { toast.error("어머니 개체를 선택해주세요."); return; }
     if (!session?.user?.djangoToken) { toast.error("로그인이 필요합니다."); return; }
+    if (isSubmitting) return;
 
     const payload = {
       gecko: parseInt(formData.motherId),
@@ -246,6 +248,7 @@ export default function IncubatorPage() {
       note: formData.memo,
     };
 
+    setIsSubmitting(true);
     try {
       const client = apiClient(session.user.djangoToken);
       const res = editingId
@@ -259,6 +262,8 @@ export default function IncubatorPage() {
     } catch (err) {
       console.error(err);
       toast.error("오류가 발생했습니다.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -647,8 +652,15 @@ export default function IncubatorPage() {
               <Button type="button" variant="outline" onClick={resetForm} className="flex-1">
                 취소
               </Button>
-              <Button type="submit" className="flex-[2] font-semibold">
-                {editingId ? "수정 완료" : "등록하기"}
+              <Button type="submit" className="flex-[2] font-semibold" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    {editingId ? "수정 중..." : "등록 중..."}
+                  </>
+                ) : (
+                  editingId ? "수정 완료" : "등록하기"
+                )}
               </Button>
             </div>
           </form>
