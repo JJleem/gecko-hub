@@ -75,7 +75,7 @@ DATABASES = {
         # 1. 배포(Vercel) 환경: Vercel 환경변수(DATABASE_URL)를 자동으로 가져다 씀
         # 2. 로컬(내 컴퓨터) 환경: 환경변수가 없으면 아래 default(SQLite)를 사용
         default=f'sqlite:///{BASE_DIR / "db.sqlite3"}',
-        conn_max_age=600
+        conn_max_age=0  # 서버리스 환경에서는 연결 재사용 비활성화
     )
 }
 # Password validation
