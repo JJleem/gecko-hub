@@ -4,7 +4,7 @@
 
 개체 프로필, 성장 기록, 메이팅/산란 추적, 인큐베이팅 현황, 혈통 관계도를 한 곳에서 관리합니다.
 
-**Live →** [geckohub.vercel.app](https://geckohub.vercel.app)
+**Live →** [[https://gecko-hub-web.vercel.app/](https://gecko-hub-web.vercel.app/)]
 
 ---
 
